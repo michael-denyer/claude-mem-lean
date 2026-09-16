@@ -31,26 +31,26 @@ describe('CLAUDE_MEM_WELCOME_HINT_ENABLED default', () => {
     }
   });
 
-  it('is set to "true" in getAllDefaults()', () => {
+  it('is set to "false" in getAllDefaults()', () => {
     const defaults = SettingsDefaultsManager.getAllDefaults();
-    expect(defaults.CLAUDE_MEM_WELCOME_HINT_ENABLED).toBe('true');
+    expect(defaults.CLAUDE_MEM_WELCOME_HINT_ENABLED).toBe('false');
   });
 
-  it('resolves to "true" when settings file is missing (auto-created with defaults)', () => {
+  it('resolves to "false" when settings file is missing (auto-created with defaults)', () => {
     expect(existsSync(settingsPath)).toBe(false);
 
     const settings = SettingsDefaultsManager.loadFromFile(settingsPath);
 
-    expect(settings.CLAUDE_MEM_WELCOME_HINT_ENABLED).toBe('true');
+    expect(settings.CLAUDE_MEM_WELCOME_HINT_ENABLED).toBe('false');
     expect(existsSync(settingsPath)).toBe(true);
   });
 
-  it('resolves to "true" when settings file is empty JSON object', () => {
+  it('resolves to "false" when settings file is empty JSON object', () => {
     writeFileSync(settingsPath, '{}', 'utf-8');
 
     const settings = SettingsDefaultsManager.loadFromFile(settingsPath);
 
-    expect(settings.CLAUDE_MEM_WELCOME_HINT_ENABLED).toBe('true');
+    expect(settings.CLAUDE_MEM_WELCOME_HINT_ENABLED).toBe('false');
   });
 
   it('preserves an explicit "false" value through loadFromFile', () => {

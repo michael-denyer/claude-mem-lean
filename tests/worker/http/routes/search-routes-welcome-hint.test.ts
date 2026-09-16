@@ -121,8 +121,7 @@ describe('SearchRoutes Welcome Hint', () => {
     expect(body).toContain('# claude-mem status');
     expect(body).toContain('/learn-codebase');
     expect(body).toContain('http://localhost:');
-    expect(body).toContain('Memory injection starts on your second session in a project.');
-    expect(body).toContain('disappears once the first observation lands');
+    expect(body).toContain('Memory injection starts on your second session in this project.');
     expect(body).not.toContain('Welcome');
     expect(generateContextStub).not.toHaveBeenCalled();
   });
@@ -158,7 +157,6 @@ describe('SearchRoutes Welcome Hint', () => {
     expect(body).toContain("claude-mem can't save memories right now");
     expect(body).toContain('What to do: It resets on the 1st. Upgrade or add credits to keep going now.');
     expect(body).toContain('# claude-mem status');
-    expect(body).toContain('disappears once the first observation lands');
     // Hint first, warning second — same order as normal context, so the
     // warning is the last thing on screen rather than the first thing scrolled off.
     expect(body.indexOf('# claude-mem status')).toBeLessThan(body.indexOf('What to do:'));

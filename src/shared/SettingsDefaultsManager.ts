@@ -207,7 +207,7 @@ export class SettingsDefaultsManager {
     CLAUDE_MEM_CONTEXT_SHOW_LAST_SUMMARY: 'true',
     CLAUDE_MEM_CONTEXT_SHOW_LAST_MESSAGE: 'false',
     CLAUDE_MEM_CONTEXT_SHOW_TERMINAL_OUTPUT: 'true',
-    CLAUDE_MEM_WELCOME_HINT_ENABLED: 'true',
+    CLAUDE_MEM_WELCOME_HINT_ENABLED: 'false',
     CLAUDE_MEM_FOLDER_CLAUDEMD_ENABLED: 'false',
     CLAUDE_MEM_FOLDER_USE_LOCAL_MD: 'false',  // When true, writes to CLAUDE.local.md instead of CLAUDE.md
     CLAUDE_MEM_TRANSCRIPTS_ENABLED: 'true',
