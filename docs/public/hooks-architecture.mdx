@@ -122,8 +122,8 @@ Claude-Mem uses lifecycle hook scripts across 5 lifecycle events. Runtime setup 
 
 **What it does:**
 1. Extracts project name from current working directory
-2. Queries SQLite for recent session summaries (last 10)
-3. Queries SQLite for recent observations (configurable, default 50)
+2. Queries SQLite for recent session summaries (last 5)
+3. Queries SQLite for recent observations (configurable, default 25)
 4. Formats as progressive disclosure index
 5. Outputs to stdout (automatically injected into context)
 

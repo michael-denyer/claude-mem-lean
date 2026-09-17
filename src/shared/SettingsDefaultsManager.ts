@@ -170,7 +170,7 @@ export interface SettingsDefaults {
 export class SettingsDefaultsManager {
   private static readonly DEFAULTS: SettingsDefaults = {
     CLAUDE_MEM_MODEL: 'claude-haiku-4-5-20251001',
-    CLAUDE_MEM_CONTEXT_OBSERVATIONS: '50',
+    CLAUDE_MEM_CONTEXT_OBSERVATIONS: '25',
     CLAUDE_MEM_WORKER_PORT: String(37700 + ((process.getuid?.() ?? 77) % 100)),
     CLAUDE_MEM_WORKER_HOST: '127.0.0.1',
     CLAUDE_MEM_API_TIMEOUT_MS: String(getTimeout(HOOK_TIMEOUTS.API_REQUEST)),
@@ -203,7 +203,7 @@ export class SettingsDefaultsManager {
     CLAUDE_MEM_CONTEXT_OBSERVATION_CONCEPTS: '',  // Comma-separated observation concepts to inject. Empty = every concept in the active mode
     CLAUDE_MEM_CONTEXT_FULL_COUNT: '0',
     CLAUDE_MEM_CONTEXT_FULL_FIELD: 'narrative',
-    CLAUDE_MEM_CONTEXT_SESSION_COUNT: '10',
+    CLAUDE_MEM_CONTEXT_SESSION_COUNT: '5',
     CLAUDE_MEM_CONTEXT_SHOW_LAST_SUMMARY: 'true',
     CLAUDE_MEM_CONTEXT_SHOW_LAST_MESSAGE: 'false',
     CLAUDE_MEM_CONTEXT_SHOW_TERMINAL_OUTPUT: 'true',
