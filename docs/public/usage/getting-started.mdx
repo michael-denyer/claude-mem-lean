@@ -54,7 +54,7 @@ When Claude finishes responding (triggering the Stop hook), a summary is automat
 
 When you start a new Claude Code session, the SessionStart hook:
 
-1. Queries the database for recent observations in your project (default: 50)
+1. Queries the database for recent observations in your project (default: 25)
 2. Retrieves recent session summaries for context
 3. Displays observations in a chronological timeline with session markers
 4. Shows full summary details (Investigated, Learned, Completed, Next Steps) **only if the summary was generated after the last observation**

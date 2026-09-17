@@ -4,6 +4,7 @@ import { SessionStore } from '../../src/services/sqlite/SessionStore.js';
 import {
   buildTimeline,
   countObservationsByProjects,
+  dedupeObservationsByTitle,
   queryObservationsMulti,
   queryObservationsNewest,
   querySummariesMulti,
@@ -392,5 +393,67 @@ describe('queryObservationsNewest house feed', () => {
     } finally {
       store.close();
     }
+  });
+});
+
+describe('dedupeObservationsByTitle', () => {
+  const HOUR = 60 * 60 * 1000;
+  const t0 = 1789593509261;
+
+  it('keeps the newest of two rows whose titles differ by one clause within the hour', () => {
+    const newer = createTestObservation({
+      id: 26958,
+      title: 'Code Review Findings: Stale Docstrings, Missing Annotations, and Behavior Changes in PRs #184–186',
+      created_at_epoch: t0,
+    });
+    const older = createTestObservation({
+      id: 26947,
+      title: 'Code Review Findings: Stale Docstrings, Collapsible Functions, and Behavior Changes in PRs #184-186',
+      created_at_epoch: t0 - 8 * 60 * 1000,
+    });
+
+    expect(dedupeObservationsByTitle([newer, older]).map(o => o.id)).toEqual([26958]);
+  });
+
+  it('keeps rows that only share a PR scope label', () => {
+    const rows = [
+      createTestObservation({ id: 26951, title: 'PR #186: Restore Literal "nan" Handling in Cohort Sex Column Validation', created_at_epoch: t0 }),
+      createTestObservation({ id: 26950, title: 'PR #186: Consolidate Keyed-Diff Helpers into Single Function', created_at_epoch: t0 - 1000 }),
+      createTestObservation({ id: 26930, title: 'PR #186: Consolidate Duplicated Keyed-Diff Logic into Generic Primitives', created_at_epoch: t0 - 5 * 60 * 1000 }),
+    ];
+
+    expect(dedupeObservationsByTitle(rows).map(o => o.id)).toEqual([26951, 26950, 26930]);
+  });
+
+  it('keeps both when the repeat is older than the window', () => {
+    const newer = createTestObservation({ id: 2, title: 'Full test suite passes', created_at_epoch: t0 });
+    const older = createTestObservation({ id: 1, title: 'Full test suite passes', created_at_epoch: t0 - HOUR - 1 });
+
+    expect(dedupeObservationsByTitle([newer, older]).map(o => o.id)).toEqual([2, 1]);
+  });
+
+  it('measures the window from the row it kept, not from the row it dropped', () => {
+    const a = createTestObservation({ id: 3, title: 'Full test suite passes', created_at_epoch: t0 });
+    const b = createTestObservation({ id: 2, title: 'Full test suite passes', created_at_epoch: t0 - 50 * 60 * 1000 });
+    const c = createTestObservation({ id: 1, title: 'Full test suite passes', created_at_epoch: t0 - 100 * 60 * 1000 });
+
+    expect(dedupeObservationsByTitle([a, b, c]).map(o => o.id)).toEqual([3, 1]);
+  });
+
+  it('does not treat an older-first repeat as inside the window', () => {
+    const older = createTestObservation({ id: 1, title: 'Full test suite passes', created_at_epoch: t0 - HOUR - 1 });
+    const newer = createTestObservation({ id: 2, title: 'Full test suite passes', created_at_epoch: t0 });
+
+    expect(dedupeObservationsByTitle([older, newer]).map(o => o.id)).toEqual([1, 2]);
+  });
+
+  it('leaves untitled rows alone', () => {
+    const rows = [
+      createTestObservation({ id: 3, title: 'PR #184 Review Requested from wisemdaya', created_at_epoch: t0 }),
+      createTestObservation({ id: 2, title: null, created_at_epoch: t0 - 1000 }),
+      createTestObservation({ id: 1, title: null, created_at_epoch: t0 - 2000 }),
+    ];
+
+    expect(dedupeObservationsByTitle(rows).map(o => o.id)).toEqual([3, 2, 1]);
   });
 });

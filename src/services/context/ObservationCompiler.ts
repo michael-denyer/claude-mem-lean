@@ -266,6 +266,48 @@ export function buildTimeline(
   return timeline;
 }
 
+export const DUPLICATE_TITLE_WINDOW_MS = 60 * 60 * 1000;
+export const DUPLICATE_TITLE_OVERLAP = 0.6;
+
+function titleWords(title: string | null): Set<string> {
+  return new Set((title ?? '').toLowerCase().split(/[^a-z0-9]+/).filter(Boolean));
+}
+
+function wordOverlap(a: Set<string>, b: Set<string>): number {
+  let shared = 0;
+  for (const word of a) if (b.has(word)) shared++;
+  return shared / (a.size + b.size - shared);
+}
+
+/**
+ * Drop older observations whose title repeats within the window, keeping
+ * the newest.
+ *
+ * The observer re-titles one piece of work several times in a burst (two
+ * "Code Review Findings: Stale Docstrings, ..." rows eight minutes apart,
+ * differing in one clause), and each repeat costs a row on every session
+ * start. Titles count as repeats when they share DUPLICATE_TITLE_OVERLAP of
+ * their words, so a scope label like "PR #186:" alone does not merge rows
+ * about different changes. Keeps the first row seen, so pass newest-first
+ * input, as the queries return it.
+ */
+export function dedupeObservationsByTitle(
+  observations: Observation[],
+  windowMs: number = DUPLICATE_TITLE_WINDOW_MS
+): Observation[] {
+  const kept: { words: Set<string>; epoch: number }[] = [];
+  return observations.filter(obs => {
+    const words = titleWords(obs.title);
+    if (words.size === 0) return true;
+    const repeat = kept.some(k =>
+      Math.abs(k.epoch - obs.created_at_epoch) <= windowMs && wordOverlap(k.words, words) >= DUPLICATE_TITLE_OVERLAP
+    );
+    if (repeat) return false;
+    kept.push({ words, epoch: obs.created_at_epoch });
+    return true;
+  });
+}
+
 export function getFullObservationIds(observations: Observation[], count: number): Set<number> {
   return new Set(
     observations

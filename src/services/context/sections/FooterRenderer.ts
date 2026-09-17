@@ -1,4 +1,3 @@
-
 import type { ContextConfig, TokenEconomics, PriorMessages } from '../types.js';
 import { shouldShowContextEconomics } from '../TokenCalculator.js';
 import * as Agent from '../formatters/AgentFormatter.js';
@@ -19,12 +18,9 @@ export function renderFooter(
   config: ContextConfig,
   forHuman: boolean
 ): string[] {
-  if (!shouldShowContextEconomics(config) || economics.totalDiscoveryTokens <= 0 || economics.savings <= 0) {
+  if (!forHuman || !shouldShowContextEconomics(config) || economics.totalDiscoveryTokens <= 0 || economics.savings <= 0) {
     return [];
   }
 
-  if (forHuman) {
-    return Human.renderHumanFooter(economics.totalDiscoveryTokens, economics.totalReadTokens);
-  }
-  return Agent.renderAgentFooter(economics.totalDiscoveryTokens, economics.totalReadTokens);
+  return Human.renderHumanFooter(economics.totalDiscoveryTokens, economics.totalReadTokens);
 }

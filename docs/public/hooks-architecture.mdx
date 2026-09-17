@@ -122,8 +122,8 @@ Claude-Mem uses lifecycle hook scripts across 5 lifecycle events. Runtime setup 
 
 **What it does:**
 1. Extracts project name from current working directory
-2. Queries SQLite for recent session summaries (last 10)
-3. Queries SQLite for recent observations (configurable, default 50)
+2. Queries SQLite for recent session summaries (last 5)
+3. Queries SQLite for recent observations (configurable, default 25)
 4. Formats as progressive disclosure index
 5. Outputs to stdout (automatically injected into context)
 
@@ -135,19 +135,18 @@ Claude-Mem uses lifecycle hook scripts across 5 lifecycle events. Runtime setup 
 
 **Output format:**
 ```markdown
-# [claude-mem] recent context
+# [claude-mem] recent context, 2026-09-16 9:43pm BST
+Mode: Code Development (code)
 
-**Legend:** 🎯 session-request | 🔴 gotcha | 🟡 problem-solution ...
+### Sep 16, 2026
+26982 9:28p ✅ Published Consolidated PR #182, Retargeted #184, Closed #183
+26990 9:43p ✅ PR #184 Review Requested from wisemdaya
+S5625 Ship the PR stack (Sep 16, 2026)
 
-### Oct 26, 2025
-
-**General**
-| ID | Time | T | Title | Tokens |
-|----|------|---|-------|--------|
-| #2586 | 12:58 AM | 🔵 | Context hook file empty | ~51 |
-
-*Use MCP search tools to access full details*
+**Next Steps**: Wait for CI on #184, then merge.
 ```
+
+The agent copy carries no legend, stats line, or fetch instructions. The glyphs read in context and the search tools are already in the model's tool list. Observations whose titles repeat within an hour (sharing most of their words) collapse to the newest row. The human copy (`claude-mem context`) keeps the legend and token stats.
 
 **Source:** `src/hooks/context-hook.ts` → `plugin/scripts/context-hook.js`
 

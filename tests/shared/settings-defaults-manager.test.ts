@@ -530,7 +530,7 @@ describe('SettingsDefaultsManager', () => {
     it('should return integer value for numeric string', () => {
       const expectedPort = 37700 + ((process.getuid?.() ?? 77) % 100);
       expect(SettingsDefaultsManager.getInt('CLAUDE_MEM_WORKER_PORT')).toBe(expectedPort);
-      expect(SettingsDefaultsManager.getInt('CLAUDE_MEM_CONTEXT_OBSERVATIONS')).toBe(50);
+      expect(SettingsDefaultsManager.getInt('CLAUDE_MEM_CONTEXT_OBSERVATIONS')).toBe(25);
     });
   });
 
