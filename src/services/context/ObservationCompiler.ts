@@ -288,8 +288,8 @@ function wordOverlap(a: Set<string>, b: Set<string>): number {
  * differing in one clause), and each repeat costs a row on every session
  * start. Titles count as repeats when they share DUPLICATE_TITLE_OVERLAP of
  * their words, so a scope label like "PR #186:" alone does not merge rows
- * about different changes. Expects newest-first input, as the queries
- * return it.
+ * about different changes. Keeps the first row seen, so pass newest-first
+ * input, as the queries return it.
  */
 export function dedupeObservationsByTitle(
   observations: Observation[],
@@ -300,7 +300,7 @@ export function dedupeObservationsByTitle(
     const words = titleWords(obs.title);
     if (words.size === 0) return true;
     const repeat = kept.some(k =>
-      k.epoch - obs.created_at_epoch <= windowMs && wordOverlap(k.words, words) >= DUPLICATE_TITLE_OVERLAP
+      Math.abs(k.epoch - obs.created_at_epoch) <= windowMs && wordOverlap(k.words, words) >= DUPLICATE_TITLE_OVERLAP
     );
     if (repeat) return false;
     kept.push({ words, epoch: obs.created_at_epoch });

@@ -440,6 +440,13 @@ describe('dedupeObservationsByTitle', () => {
     expect(dedupeObservationsByTitle([a, b, c]).map(o => o.id)).toEqual([3, 1]);
   });
 
+  it('does not treat an older-first repeat as inside the window', () => {
+    const older = createTestObservation({ id: 1, title: 'Full test suite passes', created_at_epoch: t0 - HOUR - 1 });
+    const newer = createTestObservation({ id: 2, title: 'Full test suite passes', created_at_epoch: t0 });
+
+    expect(dedupeObservationsByTitle([older, newer]).map(o => o.id)).toEqual([1, 2]);
+  });
+
   it('leaves untitled rows alone', () => {
     const rows = [
       createTestObservation({ id: 3, title: 'PR #184 Review Requested from wisemdaya', created_at_epoch: t0 }),
