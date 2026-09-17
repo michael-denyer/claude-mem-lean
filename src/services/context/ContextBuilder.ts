@@ -21,6 +21,7 @@ import {
   prepareSummariesForTimeline,
   buildTimeline,
   getFullObservationIds,
+  dedupeObservationsByTitle,
 } from './ObservationCompiler.js';
 import { renderHeader } from './sections/HeaderRenderer.js';
 import { renderTimeline } from './sections/TimelineRenderer.js';
@@ -322,7 +323,8 @@ export async function generateContextWithStats(
       ? normalizePlatformSource(input.platformSource)
       : undefined;
     const queryProjects = projects.length > 1 ? projects : [project];
-    const observations = queryObservationsMulti(db, queryProjects, config, platformSource);
+    const queried = queryObservationsMulti(db, queryProjects, config, platformSource);
+    const observations = input?.full ? queried : dedupeObservationsByTitle(queried);
     const summaries = querySummariesMulti(db, queryProjects, config, platformSource);
 
     if (observations.length === 0 && summaries.length === 0) {

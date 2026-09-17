@@ -44,17 +44,18 @@ mock.module('../../../src/services/domain/ModeManager.js', () => ({
 
 import {
   renderAgentHeader,
-  renderAgentLegend,
-  renderAgentContextEconomics,
   renderAgentDayHeader,
   renderAgentTableRow,
   renderAgentFullObservation,
   renderAgentSummaryItem,
   renderAgentSummaryField,
   renderAgentPreviouslySection,
-  renderAgentFooter,
   renderAgentEmptyState,
 } from '../../../src/services/context/formatters/AgentFormatter.js';
+import { renderHeader } from '../../../src/services/context/sections/HeaderRenderer.js';
+import { renderFooter } from '../../../src/services/context/sections/FooterRenderer.js';
+import { renderSummaryFields } from '../../../src/services/context/sections/SummaryRenderer.js';
+import type { SessionSummary } from '../../../src/services/context/types.js';
 
 import type { Observation, TokenEconomics, ContextConfig, PriorMessages } from '../../../src/services/context/types.js';
 
@@ -127,84 +128,6 @@ describe('AgentFormatter', () => {
       const result = renderAgentHeader('');
 
       expect(result[0]).toMatch(/^# \[\] recent context, \d{4}-\d{2}-\d{2} \d{1,2}:\d{2}[ap]m [A-Z]{3,4}$/);
-    });
-  });
-
-  describe('renderAgentLegend', () => {
-    it('should produce legend with type items', () => {
-      const result = renderAgentLegend();
-
-      expect(result).toHaveLength(4);
-      expect(result[0]).toContain('Legend:');
-      expect(result[3]).toBe('');
-    });
-
-    it('should include session in legend', () => {
-      const result = renderAgentLegend();
-
-      expect(result[0]).toContain('session');
-    });
-  });
-
-  describe('renderAgentContextEconomics', () => {
-    it('should include observation count', () => {
-      const economics = createTestEconomics({ totalObservations: 25 });
-      const config = createTestConfig();
-
-      const result = renderAgentContextEconomics(economics, config);
-      const joined = result.join('\n');
-
-      expect(joined).toContain('25 obs');
-    });
-
-    it('should include read tokens', () => {
-      const economics = createTestEconomics({ totalReadTokens: 1500 });
-      const config = createTestConfig();
-
-      const result = renderAgentContextEconomics(economics, config);
-      const joined = result.join('\n');
-
-      expect(joined).toContain('1,500t read');
-    });
-
-    it('should include work investment', () => {
-      const economics = createTestEconomics({ totalDiscoveryTokens: 10000 });
-      const config = createTestConfig();
-
-      const result = renderAgentContextEconomics(economics, config);
-      const joined = result.join('\n');
-
-      expect(joined).toContain('10,000t work');
-    });
-
-    it('should show savings when config has showSavingsAmount', () => {
-      const economics = createTestEconomics({ savings: 4500, savingsPercent: 90, totalDiscoveryTokens: 5000 });
-      const config = createTestConfig({ showSavingsAmount: true, showSavingsPercent: false });
-
-      const result = renderAgentContextEconomics(economics, config);
-      const joined = result.join('\n');
-
-      expect(joined).toContain('4,500t saved');
-    });
-
-    it('should show savings percent when config has showSavingsPercent', () => {
-      const economics = createTestEconomics({ savingsPercent: 85, totalDiscoveryTokens: 1000 });
-      const config = createTestConfig({ showSavingsAmount: false, showSavingsPercent: true });
-
-      const result = renderAgentContextEconomics(economics, config);
-      const joined = result.join('\n');
-
-      expect(joined).toContain('85% savings');
-    });
-
-    it('should not show savings when discovery tokens is 0', () => {
-      const economics = createTestEconomics({ totalDiscoveryTokens: 0, savings: 0, savingsPercent: 0 });
-      const config = createTestConfig({ showSavingsAmount: true, showSavingsPercent: true });
-
-      const result = renderAgentContextEconomics(economics, config);
-      const joined = result.join('\n');
-
-      expect(joined).not.toContain('savings');
     });
   });
 
@@ -403,29 +326,6 @@ describe('AgentFormatter', () => {
     });
   });
 
-  describe('renderAgentFooter', () => {
-    it('should include work token amount in k', () => {
-      const result = renderAgentFooter(10000, 500);
-      const joined = result.join('\n');
-
-      expect(joined).toContain('10k');
-    });
-
-    it('should mention mem-search skill', () => {
-      const result = renderAgentFooter(5000, 100);
-      const joined = result.join('\n');
-
-      expect(joined).toContain('mem-search skill');
-    });
-
-    it('should round work tokens to nearest thousand', () => {
-      const result = renderAgentFooter(15500, 100);
-      const joined = result.join('\n');
-
-      expect(joined).toContain('16k');
-    });
-  });
-
   describe('renderAgentEmptyState', () => {
     it('should return helpful message with project name', () => {
       const result = renderAgentEmptyState('my-project');
@@ -445,6 +345,55 @@ describe('AgentFormatter', () => {
       const result = renderAgentEmptyState('');
 
       expect(result).toContain('# [] recent context,');
+    });
+  });
+
+  describe('agent context block', () => {
+    const summary: SessionSummary = {
+      id: 9,
+      memory_session_id: 'session-123',
+      request: 'Ship it',
+      investigated: 'Looked at things',
+      learned: 'gh pr edit --add-reviewer works',
+      completed: 'Opened PR #184',
+      next_steps: 'Wait for CI on #184',
+      created_at: '2025-01-01T12:00:00.000Z',
+      created_at_epoch: 1735732800000,
+    };
+
+    it('header is the title and mode lines only, whatever the stats settings say', () => {
+      const result = renderHeader('my-project', createTestEconomics(), createTestConfig(), false);
+
+      expect(result).toHaveLength(3);
+      expect(result[0]).toContain('# [my-project] recent context,');
+      expect(result[1]).toBe('Mode: Code Development (code)');
+      expect(result.join('\n')).not.toContain('Legend:');
+      expect(result.join('\n')).not.toContain('Stats:');
+    });
+
+    it('human header still carries the legend and stats', () => {
+      const joined = renderHeader('my-project', createTestEconomics(), createTestConfig(), true).join('\n');
+
+      expect(joined).toContain('Legend');
+      expect(joined).toContain('90% reduction');
+    });
+
+    it('footer is empty for the agent even when savings are positive', () => {
+      expect(renderFooter(createTestEconomics(), createTestConfig(), false)).toEqual([]);
+      expect(renderFooter(createTestEconomics(), createTestConfig(), true).join('\n')).toContain('5k tokens');
+    });
+
+    it('summary keeps only Next Steps for the agent', () => {
+      expect(renderSummaryFields(summary, false)).toEqual(['**Next Steps**: Wait for CI on #184', '']);
+    });
+
+    it('summary keeps every field for the human', () => {
+      const joined = renderSummaryFields(summary, true).join('\n');
+
+      expect(joined).toContain('Investigated');
+      expect(joined).toContain('Learned');
+      expect(joined).toContain('Completed');
+      expect(joined).toContain('Next Steps');
     });
   });
 });

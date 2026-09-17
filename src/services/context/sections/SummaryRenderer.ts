@@ -43,9 +43,8 @@ export function renderSummaryFields(
     output.push(...Human.renderHumanSummaryField('Completed', summary.completed, colors.green));
     output.push(...Human.renderHumanSummaryField('Next Steps', summary.next_steps, colors.magenta));
   } else {
-    output.push(...Agent.renderAgentSummaryField('Investigated', summary.investigated));
-    output.push(...Agent.renderAgentSummaryField('Learned', summary.learned));
-    output.push(...Agent.renderAgentSummaryField('Completed', summary.completed));
+    // Investigated, Learned, and Completed restate the timeline rows above;
+    // Next Steps is the only field that points forward.
     output.push(...Agent.renderAgentSummaryField('Next Steps', summary.next_steps));
   }
 
