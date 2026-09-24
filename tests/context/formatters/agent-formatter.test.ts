@@ -56,7 +56,7 @@ import { renderHeader } from '../../../src/services/context/sections/HeaderRende
 import { renderSummaryFields } from '../../../src/services/context/sections/SummaryRenderer.js';
 import type { SessionSummary } from '../../../src/services/context/types.js';
 
-import type { Observation, TokenEconomics, ContextConfig, PriorMessages } from '../../../src/services/context/types.js';
+import type { Observation, ContextConfig, PriorMessages } from '../../../src/services/context/types.js';
 
 function createTestObservation(overrides: Partial<Observation> = {}): Observation {
   return {
@@ -77,17 +77,6 @@ function createTestObservation(overrides: Partial<Observation> = {}): Observatio
   };
 }
 
-function createTestEconomics(overrides: Partial<TokenEconomics> = {}): TokenEconomics {
-  return {
-    totalObservations: 10,
-    totalReadTokens: 500,
-    totalDiscoveryTokens: 5000,
-    savings: 4500,
-    savingsPercent: 90,
-    ...overrides,
-  };
-}
-
 function createTestConfig(overrides: Partial<ContextConfig> = {}): ContextConfig {
   return {
     totalObservationCount: 50,
@@ -95,8 +84,6 @@ function createTestConfig(overrides: Partial<ContextConfig> = {}): ContextConfig
     sessionCount: 3,
     showReadTokens: true,
     showWorkTokens: true,
-    showSavingsAmount: true,
-    showSavingsPercent: true,
     observationTypes: new Set(['discovery', 'decision', 'bugfix']),
     observationConcepts: new Set(['concept1', 'concept2']),
     fullObservationField: 'narrative',
