@@ -8,7 +8,6 @@ import type { EventHandler, NormalizedHookInput, HookResult } from '../types.js'
 import {
   executeWithWorkerFallback,
   isWorkerFallback,
-  getWorkerPort,
 } from '../../shared/worker-utils.js';
 import { getProjectContext } from '../../utils/project-name.js';
 import { HOOK_EXIT_CODES, HOOK_TIMEOUTS } from '../../shared/hook-constants.js';
@@ -40,7 +39,6 @@ export const contextHandler: EventHandler = {
     }
 
     const context = getProjectContext(cwd);
-    const port = getWorkerPort();
 
     const settings = loadFromFileOnce();
     // Codex already receives the timeline through additionalContext. Repeating
@@ -139,7 +137,7 @@ export const contextHandler: EventHandler = {
       : null;
 
     const systemMessage = showTerminalOutput && displayContent
-      ? `${displayContent}\n\nView Observations Live @ http://localhost:${port}${trialDaysLine ? `\n${trialDaysLine}` : ''}`
+      ? `${displayContent}${trialDaysLine ? `\n\n${trialDaysLine}` : ''}`
       : undefined;
 
     return {

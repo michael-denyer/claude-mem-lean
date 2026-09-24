@@ -26,7 +26,7 @@ import {
 import { renderHeader } from './sections/HeaderRenderer.js';
 import { renderTimeline } from './sections/TimelineRenderer.js';
 import { shouldShowSummary, renderSummaryFields } from './sections/SummaryRenderer.js';
-import { renderPreviouslySection, renderFooter } from './sections/FooterRenderer.js';
+import { renderPreviouslySection } from './sections/FooterRenderer.js';
 import { renderAgentEmptyState } from './formatters/AgentFormatter.js';
 import { renderHumanEmptyState } from './formatters/HumanFormatter.js';
 import {
@@ -91,9 +91,7 @@ function buildContextOutput(
 ): string {
   const output: string[] = [];
 
-  const economics = calculateTokenEconomics(observations);
-
-  output.push(...renderHeader(project, economics, config, forHuman));
+  output.push(...renderHeader(project, forHuman));
 
   const displaySummaries = summaries.slice(0, config.sessionCount);
   const summariesForTimeline = prepareSummariesForTimeline(displaySummaries, summaries);
@@ -111,8 +109,6 @@ function buildContextOutput(
 
   const priorMessages = getPriorSessionMessages(observations, config, sessionId, cwd);
   output.push(...renderPreviouslySection(priorMessages, forHuman));
-
-  output.push(...renderFooter(economics, config, forHuman));
 
   return output.join('\n').trimEnd();
 }

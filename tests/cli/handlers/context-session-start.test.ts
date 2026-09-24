@@ -17,9 +17,10 @@ const realProjectNameSnapshot = { ...realProjectName };
 const realWorkerUtilsSnapshot = { ...realWorkerUtils };
 
 const calls: unknown[][] = [];
+let showTerminalOutput = 'false';
 
 mock.module('../../../src/shared/hook-settings.js', () => ({
-  loadFromFileOnce: () => ({ CLAUDE_MEM_CONTEXT_SHOW_TERMINAL_OUTPUT: 'false' }),
+  loadFromFileOnce: () => ({ CLAUDE_MEM_CONTEXT_SHOW_TERMINAL_OUTPUT: showTerminalOutput }),
 }));
 
 mock.module('../../../src/shared/oauth-token.js', () => ({ readStaleMarker: () => null }));
@@ -85,5 +86,22 @@ describe('contextHandler SessionStart path', () => {
       undefined,
       undefined,
     ]]);
+  });
+
+  it('shows the terminal timeline without a viewer link', async () => {
+    showTerminalOutput = 'true';
+    try {
+      const { contextHandler } = await import('../../../src/cli/handlers/context.js');
+
+      const result = await contextHandler.execute({
+        sessionId: 'session-context-terminal',
+        cwd: '/tmp/repo',
+        platform: 'claude-code',
+      });
+
+      expect(result.systemMessage).toBe('context from worker');
+    } finally {
+      showTerminalOutput = 'false';
+    }
   });
 });
