@@ -29,6 +29,11 @@
  * A crash-restart loop is the worst shape: crash, respawn, empty breaker,
  * doomed request, repeat — the storm again with extra steps.
  *
+ * A pause from claude-mem's own usage guard (`recordQuotaAbort`) is not
+ * persisted. It is derived from usage snapshots that live in worker memory, so
+ * a restart discards its evidence; keeping the pause would ignore an allowance
+ * the user has since reset. Only a provider refusal is written to disk.
+ *
  * The probe claim (`probeInFlightSinceMs` / `probeClaimId`) is deliberately NOT
  * persisted, and must load as null. It is single-process concurrency state: a
  * restart kills every generator that could be holding one, so a claim restored
@@ -48,6 +53,8 @@ import {
 export type QuotaProvider = 'claude' | 'gemini' | 'openrouter' | 'cmem-gateway';
 
 export const QUOTA_COOLDOWN_FILENAME = 'quota-cooldown.json';
+
+const QUOTA_GUARD_MESSAGE = 'Plan usage is above the quota guard threshold';
 
 /**
  * The persisted half of a breaker: the armed window only. Never the claim.
@@ -80,6 +87,7 @@ function hydrateFromDisk(filePath: string = defaultCooldownFilePath()): void {
         message: entry.message ?? 'Provider reported the inference allowance exhausted',
         ...(entry.window ? { window: entry.window } : {}),
         armedAtMs: entry.armedAtMs,
+        persisted: true,
         // Never restored: the process that could have held this is gone.
         probeInFlightSinceMs: null,
         probeClaimId: null,
@@ -95,11 +103,12 @@ function hydrateFromDisk(filePath: string = defaultCooldownFilePath()): void {
 function persistToDisk(filePath: string = defaultCooldownFilePath()): void {
   try {
     mkdirSync(dirname(filePath), { recursive: true });
-    if (cooldowns.size === 0) {
+    const persisted = [...cooldowns.values()].filter((state) => state.persisted);
+    if (persisted.length === 0) {
       if (existsSync(filePath)) unlinkSync(filePath);
       return;
     }
-    const rows: PersistedQuotaCooldown[] = [...cooldowns.values()].map((state) => ({
+    const rows: PersistedQuotaCooldown[] = persisted.map((state) => ({
       provider: state.provider,
       message: state.message,
       ...(state.window ? { window: state.window } : {}),
@@ -136,6 +145,8 @@ export interface QuotaCooldownState {
   /** Window the provider named, when it named one (e.g. 'weekly'). */
   window?: string;
   armedAtMs: number;
+  /** False for a quota-guard pause, which a worker restart should drop. */
+  persisted: boolean;
   /**
    * When the single post-expiry probe was claimed, or null when none is in
    * flight. Without this the expiry check is a bare read: every concurrent
@@ -188,12 +199,49 @@ export function recordQuotaExhausted(
    */
   armedAtMs: number = Date.now(),
 ): QuotaCooldownState {
+  return arm(provider, message, window, armedAtMs, true);
+}
+
+/**
+ * Abort reason for claude-mem's own usage guard tripping on `window`.
+ *
+ * The trailing `:guard` separates it from provider refusals, which share the
+ * `quota:<window>` shape (`quota:observer_text`, `quota:rate_limit`, ...).
+ */
+export function quotaGuardAbortReason(window: string): string {
+  return `quota:${window}:guard`;
+}
+
+/**
+ * Arm the breaker for a generator that exited with a `quota:` abort reason.
+ *
+ * A guard trip is not written to disk: the guard reads usage snapshots held in
+ * worker memory, which a restart discards, so a restart after the user resets
+ * their allowance lets one request read live usage, and the guard re-arms at
+ * once if usage is still high. A provider refusal persists as before.
+ */
+export function recordQuotaAbort(provider: QuotaProvider, reason: string): QuotaCooldownState {
+  const [, window, source] = reason.split(':');
+  if (source === 'guard') {
+    return arm(provider, QUOTA_GUARD_MESSAGE, window, Date.now(), false);
+  }
+  return recordQuotaExhausted(provider, 'Provider reported the inference allowance exhausted', window);
+}
+
+function arm(
+  provider: QuotaProvider,
+  message: string,
+  window: string | undefined,
+  armedAtMs: number,
+  persisted: boolean,
+): QuotaCooldownState {
   hydrateFromDisk();
   const state: QuotaCooldownState = {
     provider,
     message,
     ...(window ? { window } : {}),
     armedAtMs,
+    persisted,
     // Re-arming ends whatever probe was in flight: this IS that probe failing.
     probeInFlightSinceMs: null,
     probeClaimId: null,
@@ -321,6 +369,12 @@ export function resetQuotaCooldownsForTesting(): void {
   } catch {
     // Observability must never affect the breaker, including test reset.
   }
+}
+
+/** Drop in-memory state but keep the ledger on disk, as a worker restart does. */
+export function simulateWorkerRestartForTesting(): void {
+  cooldowns.clear();
+  hydrated = false;
 }
 
 /**

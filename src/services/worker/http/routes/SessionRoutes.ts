@@ -37,6 +37,7 @@ import {
   tryAdmitQuotaProbe,
   releaseQuotaProbe,
   recordQuotaExhausted,
+  recordQuotaAbort,
   getQuotaCooldown,
   QUOTA_EXHAUSTED_RECHECK_COOLDOWN_MS,
 } from '../../../../shared/quota-cooldown.js';
@@ -484,8 +485,7 @@ export class SessionRoutes extends BaseRouteHandler {
         // it must arm the breaker too — otherwise the prose path keeps the
         // per-observation request storm the classified path no longer has.
         if (normalizeAbortReason(reason) === 'quota') {
-          const quotaMessage = 'Provider reported the inference allowance exhausted';
-          recordQuotaExhausted(provider, quotaMessage, reason?.split(':')[1]);
+          const quotaMessage = recordQuotaAbort(provider, reason!).message;
           // Quota returned as assistant prose never throws, so it never reaches
           // the .catch above and never armed the health ledger. Without this the
           // session-start warning is structurally blind to an entire outage

@@ -7,6 +7,7 @@ import { SettingsDefaultsManager } from '../../shared/SettingsDefaultsManager.js
 import { USER_SETTINGS_PATH, OBSERVER_SESSIONS_DIR, ensureDir, paths } from '../../shared/paths.js';
 import { buildIsolatedEnvWithFreshOAuth, getAuthMethodDescription } from '../../shared/EnvManager.js';
 import { findClaudeExecutable } from '../../shared/find-claude-executable.js';
+import { quotaGuardAbortReason } from '../../shared/quota-cooldown.js';
 import type { ActiveSession, SDKUserMessage } from '../worker-types.js';
 import { ModeManager } from '../domain/ModeManager.js';
 import { processAgentResponse, snapshotResponseContext, type WorkerRef } from './agents/index.js';
@@ -356,7 +357,7 @@ export class ClaudeProvider {
               window: decision.window,
               authMethod,
             });
-            session.abortReason = `quota:${decision.window ?? 'unknown'}`;
+            session.abortReason = quotaGuardAbortReason(decision.window ?? 'unknown');
             try {
               session.abortController.abort();
             } catch {
