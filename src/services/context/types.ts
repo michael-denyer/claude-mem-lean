@@ -18,8 +18,6 @@ export interface ContextConfig {
 
   showReadTokens: boolean;
   showWorkTokens: boolean;
-  showSavingsAmount: boolean;
-  showSavingsPercent: boolean;
 
   observationTypes: Set<string>;
   observationConcepts: Set<string>;
