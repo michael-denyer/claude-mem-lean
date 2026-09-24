@@ -53,7 +53,6 @@ import {
   renderAgentEmptyState,
 } from '../../../src/services/context/formatters/AgentFormatter.js';
 import { renderHeader } from '../../../src/services/context/sections/HeaderRenderer.js';
-import { renderFooter } from '../../../src/services/context/sections/FooterRenderer.js';
 import { renderSummaryFields } from '../../../src/services/context/sections/SummaryRenderer.js';
 import type { SessionSummary } from '../../../src/services/context/types.js';
 
@@ -376,11 +375,6 @@ describe('AgentFormatter', () => {
 
       expect(joined).toContain('Legend');
       expect(joined).toContain('90% reduction');
-    });
-
-    it('footer is empty for the agent even when savings are positive', () => {
-      expect(renderFooter(createTestEconomics(), createTestConfig(), false)).toEqual([]);
-      expect(renderFooter(createTestEconomics(), createTestConfig(), true).join('\n')).toContain('5k tokens');
     });
 
     it('summary keeps only Next Steps for the agent', () => {

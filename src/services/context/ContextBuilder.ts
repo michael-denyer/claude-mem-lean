@@ -26,7 +26,7 @@ import {
 import { renderHeader } from './sections/HeaderRenderer.js';
 import { renderTimeline } from './sections/TimelineRenderer.js';
 import { shouldShowSummary, renderSummaryFields } from './sections/SummaryRenderer.js';
-import { renderPreviouslySection, renderFooter } from './sections/FooterRenderer.js';
+import { renderPreviouslySection } from './sections/FooterRenderer.js';
 import { renderAgentEmptyState } from './formatters/AgentFormatter.js';
 import { renderHumanEmptyState } from './formatters/HumanFormatter.js';
 import {
@@ -111,8 +111,6 @@ function buildContextOutput(
 
   const priorMessages = getPriorSessionMessages(observations, config, sessionId, cwd);
   output.push(...renderPreviouslySection(priorMessages, forHuman));
-
-  output.push(...renderFooter(economics, config, forHuman));
 
   return output.join('\n').trimEnd();
 }

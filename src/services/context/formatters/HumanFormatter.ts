@@ -182,14 +182,6 @@ export function renderHumanPreviouslySection(priorMessages: PriorMessages): stri
   ];
 }
 
-export function renderHumanFooter(totalDiscoveryTokens: number, totalReadTokens: number): string[] {
-  const workTokensK = Math.round(totalDiscoveryTokens / 1000);
-  return [
-    '',
-    `${colors.dim}Access ${workTokensK}k tokens of past research & decisions for just ${totalReadTokens.toLocaleString()}t. Use the claude-mem skill to access memories by ID.${colors.reset}`
-  ];
-}
-
 export function renderHumanEmptyState(project: string): string {
   return `\n${colors.bright}${colors.cyan}[${project}] recent context, ${formatHeaderDateTime()}${colors.reset}\n${colors.dim}Mode: ${formatActiveMode()}${colors.reset}\n${colors.gray}${'─'.repeat(60)}${colors.reset}\n\n${colors.dim}No previous sessions found for this project yet.${colors.reset}\n`;
 }
