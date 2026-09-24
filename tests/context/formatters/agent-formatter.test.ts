@@ -360,8 +360,8 @@ describe('AgentFormatter', () => {
       created_at_epoch: 1735732800000,
     };
 
-    it('header is the title and mode lines only, whatever the stats settings say', () => {
-      const result = renderHeader('my-project', createTestEconomics(), createTestConfig(), false);
+    it('header is the title and mode lines only', () => {
+      const result = renderHeader('my-project', false);
 
       expect(result).toHaveLength(3);
       expect(result[0]).toContain('# [my-project] recent context,');
@@ -370,11 +370,13 @@ describe('AgentFormatter', () => {
       expect(result.join('\n')).not.toContain('Stats:');
     });
 
-    it('human header still carries the legend and stats', () => {
-      const joined = renderHeader('my-project', createTestEconomics(), createTestConfig(), true).join('\n');
+    it('human header is the title line only', () => {
+      const result = renderHeader('my-project', true)
+        .map(line => line.replace(/\x1b\[[0-9;]*m/g, ''))
+        .filter(line => line !== '');
 
-      expect(joined).toContain('Legend');
-      expect(joined).toContain('90% reduction');
+      expect(result).toHaveLength(1);
+      expect(result[0]).toContain('[my-project] recent context,');
     });
 
     it('summary keeps only Next Steps for the agent', () => {

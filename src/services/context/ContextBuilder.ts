@@ -91,9 +91,7 @@ function buildContextOutput(
 ): string {
   const output: string[] = [];
 
-  const economics = calculateTokenEconomics(observations);
-
-  output.push(...renderHeader(project, economics, config, forHuman));
+  output.push(...renderHeader(project, forHuman));
 
   const displaySummaries = summaries.slice(0, config.sessionCount);
   const summariesForTimeline = prepareSummariesForTimeline(displaySummaries, summaries);
