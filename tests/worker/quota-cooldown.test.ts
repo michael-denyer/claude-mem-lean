@@ -5,9 +5,12 @@ import {
   tryAdmitQuotaProbe,
   releaseQuotaProbe,
   recordQuotaExhausted,
+  recordQuotaAbort,
+  quotaGuardAbortReason,
   clearQuotaCooldown,
   getQuotaCooldown,
   resetQuotaCooldownsForTesting,
+  simulateWorkerRestartForTesting,
   QUOTA_EXHAUSTED_RECHECK_COOLDOWN_MS,
   QUOTA_PROBE_STALE_MS,
 } from '../../src/shared/quota-cooldown.js';
@@ -277,4 +280,35 @@ describe('quota cooldown breaker (#3634)', () => {
     expect(cleared === null || cleared.quotaCooldown === null).toBe(true);
     expect(isObserverQuotaCooldownActive(cleared)).toBe(false);
   });
+
+  it('keeps a provider refusal armed across a worker restart', () => {
+    recordQuotaExhausted('claude', 'Weekly limit reached', 'weekly');
+
+    simulateWorkerRestartForTesting();
+
+    expect(isQuotaCooldownActive('claude')).toBe(true);
+  });
+
+  it('drops a quota-guard pause on restart so a reset allowance is re-read', () => {
+    // The guard trips on usage snapshots held in memory, which a restart
+    // discards. After the user resets their allowance, the restart must let
+    // the next request read live usage instead of waiting out the window.
+    recordQuotaAbort('claude', quotaGuardAbortReason('seven_day'));
+    expect(isQuotaCooldownActive('claude')).toBe(true);
+
+    simulateWorkerRestartForTesting();
+
+    expect(isQuotaCooldownActive('claude')).toBe(false);
+    expect(tryAdmitQuotaProbe('claude').admitted).toBe(true);
+  });
+
+  for (const reason of ['quota:observer_text', 'quota:quota_exhausted', 'quota:rate_limit']) {
+    it(`keeps a provider refusal armed across a restart (${reason})`, () => {
+      recordQuotaAbort('openrouter', reason);
+
+      simulateWorkerRestartForTesting();
+
+      expect(isQuotaCooldownActive('openrouter')).toBe(true);
+    });
+  }
 });
