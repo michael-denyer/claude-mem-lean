@@ -130,7 +130,7 @@ for (const scenario of ['held', 'failed'] as const) {
       // Before the load: the form and Save are disabled, and a Save click
       // posts nothing (it would have posted the defaults).
       expect({ ...reported.blocked, postsBeforeLoad: posts.slice(0, postsWhenLoaded ?? posts.length) }).toEqual({
-        saveDisabled: true, inputDisabled: true, observations: '50',
+        saveDisabled: true, inputDisabled: true, observations: '25',
         status: scenario === 'held' ? 'Loading settings…' : 'Could not load settings: HTTP 500 Retry',
         retry: scenario === 'failed', postsBeforeLoad: [],
       });
