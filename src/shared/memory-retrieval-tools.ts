@@ -17,7 +17,6 @@ function claudeMemToolName(name: string): string | null {
 
 export function isRecursiveMemoryTool(toolName: string): boolean {
   if (!toolName) return false;
-  // Preserve the OpenClaw adapter's existing native memory_* recursion gate.
   if (toolName.startsWith('memory_')) return true;
   if (toolName === 'mem_search' || toolName === 'get_summaries') return true;
   const tool = claudeMemToolName(toolName);
