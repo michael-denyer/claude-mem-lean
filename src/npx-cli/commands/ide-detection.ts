@@ -66,12 +66,6 @@ export function detectInstalledIDEs(): IDEInfo[] {
       hint: 'plugin-based integration',
     },
     {
-      id: 'openclaw',
-      label: 'OpenClaw',
-      detected: existsSync(join(home, '.openclaw')),
-      hint: 'plugin-based integration',
-    },
-    {
       id: 'windsurf',
       label: 'Windsurf',
       detected: existsSync(join(home, '.codeium', 'windsurf')),

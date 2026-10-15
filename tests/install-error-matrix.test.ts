@@ -25,7 +25,6 @@ import {
 const CANONICAL_IDES = [
   'claude-code',
   'opencode',
-  'openclaw',
   'windsurf',
   'codex-cli',
   'cursor',
@@ -372,8 +371,8 @@ describe('cross-IDE failure matrix (11 IDEs x 4 scenarios)', () => {
     else process.env.CLAUDE_MEM_DATA_DIR = prevMatrixDataDir;
   });
 
-  it('produces 48 cells (12 IDEs x 4 scenarios)', () => {
-    expect(CANONICAL_IDES.length * scenarios.length).toBe(48);
+  it('produces 44 cells (11 IDEs x 4 scenarios)', () => {
+    expect(CANONICAL_IDES.length * scenarios.length).toBe(44);
   });
 
   for (const ide of CANONICAL_IDES) {

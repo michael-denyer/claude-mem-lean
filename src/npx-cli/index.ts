@@ -70,7 +70,7 @@ ${styleText('bold', 'Claude Code Hooks')}:
   restart your terminal or IDE, then check ${styleText('cyan', 'npx claude-mem doctor')}.
 
 ${styleText('bold', 'IDE Identifiers')}:
-  claude-code, cursor, grok-bot, opencode, openclaw, omp, pi, dsh,
+  claude-code, cursor, grok-bot, opencode, omp, pi, dsh,
   windsurf, codex-cli, t3code (aliases: t3, t3-code), kimi, copilot-cli, antigravity, goose,
   roo-code, warp
 `);

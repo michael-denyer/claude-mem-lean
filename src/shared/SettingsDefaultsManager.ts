@@ -439,9 +439,8 @@ export class SettingsDefaultsManager {
     CLAUDE_MEM_OPENROUTER_API_KEY: '',  // Empty by default, can be set via UI or env
     CLAUDE_MEM_OPENROUTER_API_KEYS: '',  // Optional extra keys (newline/comma separated). Rotates on rate_limit/quota_exhausted/auth_invalid — see src/shared/api-key-pool.ts.
     // Default OpenRouter model (free tier). The same id is hard-coded in
-    // src/ui/viewer/constants/settings.ts (DEFAULT_SETTINGS) and three times in
-    // openclaw/install.sh (settings defaults, openrouter override, completion
-    // summary); tests/shared/settings-defaults-manager.test.ts keeps them equal.
+    // src/ui/viewer/constants/settings.ts (DEFAULT_SETTINGS);
+    // tests/shared/settings-defaults-manager.test.ts keeps them equal.
     // Changing it strands installs that were seeded with the old id: add that
     // id to RETIRED_OPENROUTER_DEFAULT_MODELS.
     CLAUDE_MEM_OPENROUTER_MODEL: 'cohere/north-mini-code:free',

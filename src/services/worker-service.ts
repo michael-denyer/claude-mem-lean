@@ -971,8 +971,8 @@ export class WorkerService implements WorkerRef {
       // activity clock starts here, so boot can never race the window — and
       // after startTranscriptWatcher, which decides whether it may arm at
       // all. The next hook that reads memory (or the MCP server's next call)
-      // starts the worker again; plugin hosts that never start it (OpenCode,
-      // OpenClaw) are why the docs say to leave idle exit off there.
+      // starts the worker again; plugin hosts that never start it (OpenCode)
+      // are why the docs say to leave idle exit off there.
       this.startIdleExitMonitor(settings);
 
       return;

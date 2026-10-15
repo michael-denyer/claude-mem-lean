@@ -43,9 +43,6 @@ export const MAX_TOOL_PAYLOAD_BYTES = 64 * 1024;
  *
  * The same lightweight classifier gates hook/ingest observation generation:
  * retrieval must not create a new paid observation of its own previous output.
- * OpenClaw already drops `memory_*` before it ever reaches the worker
- * (`openclaw/src/index.ts:802`); the prefix is mirrored here so every other
- * adapter gets the same protection.
  */
 export interface ToolUseRow {
   id: number;
