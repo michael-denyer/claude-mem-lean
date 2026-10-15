@@ -7,23 +7,13 @@ import type {
 import { colors } from '../types.js';
 import { ModeManager } from '../../domain/ModeManager.js';
 import { formatObservationTokenDisplay } from '../TokenCalculator.js';
+import { formatHeaderDateTime } from '../../../shared/timeline-formatting.js';
+import { formatContextReferenceId } from './id-display.js';
 
-function formatHeaderDateTime(): string {
-  const now = new Date();
-  const date = now.toLocaleDateString('en-CA'); 
-  const time = now.toLocaleTimeString('en-US', {
-    hour: 'numeric',
-    minute: '2-digit',
-    hour12: true
-  }).toLowerCase().replace(' ', '');
-  const tz = now.toLocaleTimeString('en-US', { timeZoneName: 'short' }).split(' ').pop();
-  return `${date} ${time} ${tz}`;
-}
-
-export function renderHumanHeader(project: string): string[] {
+export function renderHumanHeader(project: string, headerTime: string = formatHeaderDateTime()): string[] {
   return [
     '',
-    `${colors.bright}${colors.cyan}[${project}] recent context, ${formatHeaderDateTime()}${colors.reset}`,
+    `${colors.bright}${colors.cyan}[${project}] recent context, ${headerTime}${colors.reset}`,
     ''
   ];
 }
@@ -55,7 +45,7 @@ export function renderHumanTableRow(
   const readPart = (config.showReadTokens && readTokens > 0) ? `${colors.dim}(~${readTokens}t)${colors.reset}` : '';
   const discoveryPart = (config.showWorkTokens && discoveryTokens > 0) ? `${colors.dim}(${workEmoji} ${discoveryTokens.toLocaleString()}t)${colors.reset}` : '';
 
-  return `  ${colors.dim}#${obs.id}${colors.reset}  ${timePart}  ${icon}  ${title} ${readPart} ${discoveryPart}`;
+  return `  ${colors.dim}#${formatContextReferenceId(obs.id, config)}${colors.reset}  ${timePart}  ${icon}  ${title} ${readPart} ${discoveryPart}`;
 }
 
 export function renderHumanFullObservation(
@@ -74,7 +64,7 @@ export function renderHumanFullObservation(
   const readPart = (config.showReadTokens && readTokens > 0) ? `${colors.dim}(~${readTokens}t)${colors.reset}` : '';
   const discoveryPart = (config.showWorkTokens && discoveryTokens > 0) ? `${colors.dim}(${workEmoji} ${discoveryTokens.toLocaleString()}t)${colors.reset}` : '';
 
-  output.push(`  ${colors.dim}#${obs.id}${colors.reset}  ${timePart}  ${icon}  ${colors.bright}${title}${colors.reset}`);
+  output.push(`  ${colors.dim}#${formatContextReferenceId(obs.id, config)}${colors.reset}  ${timePart}  ${icon}  ${colors.bright}${title}${colors.reset}`);
   if (detailField) {
     output.push(`    ${colors.dim}${detailField}${colors.reset}`);
   }
@@ -87,12 +77,13 @@ export function renderHumanFullObservation(
 }
 
 export function renderHumanSummaryItem(
-  summary: { id: number; request: string | null },
-  formattedTime: string
+  summary: { id: number | string; request: string | null },
+  formattedTime: string,
+  config: Pick<ContextConfig, 'fetchByIdSupported'> = {}
 ): string[] {
   const summaryTitle = `${summary.request || 'Session started'} (${formattedTime})`;
   return [
-    `${colors.yellow}#S${summary.id}${colors.reset} ${summaryTitle}`,
+    `${colors.yellow}#S${formatContextReferenceId(summary.id, config)}${colors.reset} ${summaryTitle}`,
     ''
   ];
 }
@@ -116,6 +107,6 @@ export function renderHumanPreviouslySection(priorMessages: PriorMessages): stri
   ];
 }
 
-export function renderHumanEmptyState(project: string): string {
-  return `\n${colors.bright}${colors.cyan}[${project}] recent context, ${formatHeaderDateTime()}${colors.reset}\n\n${colors.dim}No previous sessions found for this project yet.${colors.reset}\n`;
+export function renderHumanEmptyState(project: string, headerTime: string = formatHeaderDateTime()): string {
+  return `\n${colors.bright}${colors.cyan}[${project}] recent context, ${headerTime}${colors.reset}\n\n${colors.dim}No previous sessions found for this project yet.${colors.reset}\n`;
 }

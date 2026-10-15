@@ -7,18 +7,8 @@ import type {
 } from '../types.js';
 import { ModeManager } from '../../domain/ModeManager.js';
 import { formatObservationTokenDisplay } from '../TokenCalculator.js';
-
-function formatHeaderDateTime(): string {
-  const now = new Date();
-  const date = now.toLocaleDateString('en-CA'); 
-  const time = now.toLocaleTimeString('en-US', {
-    hour: 'numeric',
-    minute: '2-digit',
-    hour12: true
-  }).toLowerCase().replace(' ', '');
-  const tz = now.toLocaleTimeString('en-US', { timeZoneName: 'short' }).split(' ').pop();
-  return `${date} ${time} ${tz}`;
-}
+import { formatHeaderDateTime } from '../../../shared/timeline-formatting.js';
+import { formatContextReferenceId } from './id-display.js';
 
 function formatActiveMode(): string {
   const manager = ModeManager.getInstance();
@@ -26,9 +16,9 @@ function formatActiveMode(): string {
   return `${mode.name} (${manager.getActiveModeId()})`;
 }
 
-export function renderAgentHeader(project: string): string[] {
+export function renderAgentHeader(project: string, headerTime: string = formatHeaderDateTime()): string[] {
   return [
-    `# [${project}] recent context, ${formatHeaderDateTime()}`,
+    `# [${project}] recent context, ${headerTime}`,
     `Mode: ${formatActiveMode()}`,
     ''
   ];
@@ -47,13 +37,14 @@ function compactTime(time: string): string {
 export function renderAgentTableRow(
   obs: Observation,
   timeDisplay: string,
-  _config: ContextConfig
+  config: ContextConfig
 ): string {
   const title = obs.title || 'Untitled';
   const icon = ModeManager.getInstance().getTypeIcon(obs.type);
   const time = timeDisplay ? compactTime(timeDisplay) : '"';
+  const refId = formatContextReferenceId(obs.id, config);
 
-  return `${obs.id} ${time} ${icon} ${title}`;
+  return `${refId} ${time} ${icon} ${title}`;
 }
 
 export function renderAgentFullObservation(
@@ -67,8 +58,9 @@ export function renderAgentFullObservation(
   const icon = ModeManager.getInstance().getTypeIcon(obs.type);
   const time = timeDisplay ? compactTime(timeDisplay) : '"';
   const { readTokens, discoveryDisplay } = formatObservationTokenDisplay(obs, config);
+  const refId = formatContextReferenceId(obs.id, config);
 
-  output.push(`**${obs.id}** ${time} ${icon} **${title}**`);
+  output.push(`**${refId}** ${time} ${icon} **${title}**`);
   if (detailField) {
     output.push(detailField);
   }
@@ -89,11 +81,12 @@ export function renderAgentFullObservation(
 }
 
 export function renderAgentSummaryItem(
-  summary: { id: number; request: string | null },
-  formattedTime: string
+  summary: { id: number | string; request: string | null },
+  formattedTime: string,
+  config: Pick<ContextConfig, 'fetchByIdSupported'> = {}
 ): string[] {
   return [
-    `S${summary.id} ${summary.request || 'Session started'} (${formattedTime})`,
+    `S${formatContextReferenceId(summary.id, config)} ${summary.request || 'Session started'} (${formattedTime})`,
   ];
 }
 
@@ -116,6 +109,6 @@ export function renderAgentPreviouslySection(priorMessages: PriorMessages): stri
   ];
 }
 
-export function renderAgentEmptyState(project: string): string {
-  return `# [${project}] recent context, ${formatHeaderDateTime()}\nMode: ${formatActiveMode()}\n\nNo previous sessions found.`;
+export function renderAgentEmptyState(project: string, headerTime: string = formatHeaderDateTime()): string {
+  return `# [${project}] recent context, ${headerTime}\nMode: ${formatActiveMode()}\n\nNo previous sessions found.`;
 }
