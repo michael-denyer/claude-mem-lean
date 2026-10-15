@@ -7,6 +7,8 @@ on:
 
 jobs:
   publish:
+    # Forks tag releases too; only upstream publishes the claude-mem package.
+    if: github.repository == 'thedotmack/claude-mem'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
