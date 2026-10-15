@@ -162,16 +162,6 @@ Khởi động lại Claude Code. Ngữ cảnh từ các phiên trước sẽ t�
 
 > **Lưu ý:** Claude-Mem cũng được phát hành trên npm, nhưng `npm install -g claude-mem` chỉ cài đặt **SDK/thư viện** — nó không đăng ký các hook của plugin hay thiết lập dịch vụ worker. Hãy luôn cài đặt qua `npx claude-mem install` hoặc các lệnh `/plugin` ở trên.
 
-### 🦞 OpenClaw Gateway
-
-Cài đặt claude-mem như một plugin bộ nhớ liên tục trên các gateway [OpenClaw](https://openclaw.ai) chỉ với một lệnh duy nhất:
-
-```bash
-curl -fsSL https://install.cmem.ai/openclaw.sh | bash
-```
-
-Trình cài đặt xử lý các phần phụ thuộc, thiết lập plugin, cấu hình nhà cung cấp AI, khởi động worker, và tùy chọn gửi luồng quan sát thời gian thực đến Telegram, Discord, Slack, và nhiều hơn nữa. Xem [Hướng Dẫn Tích Hợp OpenClaw](https://docs.claude-mem.ai/openclaw-integration) để biết chi tiết.
-
 **Tính Năng Chính:**
 
 - 🧠 **Bộ Nhớ Liên Tục** - Ngữ cảnh được lưu giữ qua các phiên làm việc

@@ -162,16 +162,6 @@ npx claude-mem install --ide antigravity
 
 > **הערה:** Claude-Mem מפורסם גם ב-npm, אך `npm install -g claude-mem` מתקין רק את **ה-SDK/ספרייה** — הוא אינו רושם את hooks התוסף ואינו מגדיר את שירות ה-worker. תמיד יש להתקין באמצעות `npx claude-mem install` או פקודות `/plugin` שלעיל.
 
-### 🦞 OpenClaw Gateway
-
-התקן את claude-mem כתוסף זיכרון מתמשך על שערי [OpenClaw](https://openclaw.ai) בפקודה בודדת:
-
-```bash
-curl -fsSL https://install.cmem.ai/openclaw.sh | bash
-```
-
-תוכנת ההתקנה מטפלת בתלויות, בהגדרת התוסף, בהגדרת ספק ה-AI, בהפעלת ה-worker, ובאפשרות להזין זרימות תצפיות בזמן אמת ל-Telegram, Discord, Slack ועוד. עיין ב[מדריך שילוב OpenClaw](https://docs.claude-mem.ai/openclaw-integration) לפרטים.
-
 **תכונות עיקריות:**
 
 - 🧠 **זיכרון מתמשך** - הקשר שורד בין הפעלות

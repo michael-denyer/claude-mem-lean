@@ -164,16 +164,6 @@ npx claude-mem install --ide antigravity
 
 > **ملاحظة:** يُنشر Claude-Mem أيضاً على npm، إلا أن الأمر `npm install -g claude-mem` يُثبّت **حزمة الـ SDK/المكتبة فقط** — ولا يقوم بتسجيل خطافات الإضافة (plugin hooks) ولا بإعداد خدمة العامل (worker service). قم دائماً بالتثبيت عبر `npx claude-mem install` أو أوامر `/plugin` المذكورة أعلاه.
 
-### 🦞 بوابة OpenClaw (OpenClaw Gateway)
-
-قم بتثبيت claude-mem كإضافة ذاكرة دائمة على بوابات [OpenClaw](https://openclaw.ai) بأمر واحد:
-
-```bash
-curl -fsSL https://install.cmem.ai/openclaw.sh | bash
-```
-
-يتولى برنامج التثبيت التبعيات، وإعداد الإضافة، وتهيئة مزوّد الذكاء الاصطناعي، وتشغيل العامل (worker)، بالإضافة إلى بثّ اختياري للملاحظات في الوقت الفعلي إلى Telegram وDiscord وSlack وغيرها. راجع [دليل تكامل OpenClaw](https://docs.claude-mem.ai/openclaw-integration) للتفاصيل.
-
 **الميزات الرئيسية:**
 
 - 🧠 **ذاكرة دائمة** - السياق يستمر عبر الجلسات

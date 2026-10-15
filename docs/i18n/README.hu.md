@@ -162,16 +162,6 @@ Indítsa újra a Claude Code-ot. A korábbi munkamenetek kontextusa automatikusa
 
 > **Megjegyzés:** A Claude-Mem az npm-en is elérhető, de az `npm install -g claude-mem` csak a **SDK/könyvtár** részt telepíti — nem regisztrálja a plugin hookokat, és nem állítja be a worker szolgáltatást. Mindig a `npx claude-mem install` vagy a fenti `/plugin` parancsok segítségével telepítsen.
 
-### 🦞 OpenClaw Gateway
-
-Telepítse a claude-mem-et tartós memória pluginként az [OpenClaw](https://openclaw.ai) gateway-eken egyetlen paranccsal:
-
-```bash
-curl -fsSL https://install.cmem.ai/openclaw.sh | bash
-```
-
-A telepítő kezeli a függőségeket, a plugin beállítását, az AI szolgáltató konfigurációját, a worker indítását, valamint az opcionális valós idejű megfigyelési feedeket Telegramra, Discordra, Slackre és másokra. Részletekért lásd az [OpenClaw integrációs útmutatót](https://docs.claude-mem.ai/openclaw-integration).
-
 **Főbb jellemzők:**
 
 - 🧠 **Tartós memória** - A kontextus túléli a munkameneteket
