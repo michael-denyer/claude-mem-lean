@@ -20,7 +20,7 @@ Three stages:
    - `POST https://cmem.ai/api/installer/oauth/start` with `{ source: "npx-installer", device_name: <hostname>, install_state: "fresh" | "update", usage_summary?: { window_days: 28, active_days, observations, memory_tokens, days: [{ d: "YYYY-MM-DD", obs, tokens }] } }` (`usage_summary` is omitted when no local data can be read)
    - prints a device code `XXXX-XXXX` and opens `authorization_url`
    - polls `https://cmem.ai/api/pro/trial/poll` until authenticated
-3. **Provider** — **CMEM Pro is pre-selected.** Choosing it opens `checkout_url` (trial/claim), polls until `status: "ready"`, then writes settings and restarts the worker.
+3. **Provider** — **Your Anthropic plan is pre-selected.** Choosing CMEM Pro opens `checkout_url` (trial/claim), polls until `status: "ready"`, then writes settings and restarts the worker.
 
 `--provider openrouter` with a **personal** key is a different path: empty `CLAUDE_MEM_OPENROUTER_BASE_URL` (or `https://openrouter.ai/api/v1`). Never send a personal `sk-or-` key to `https://cmem.ai/api/inference`.
 

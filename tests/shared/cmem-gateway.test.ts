@@ -13,10 +13,8 @@ import {
   hasShownProFallbackNotice,
   markProFallbackNoticeShown,
   proFallbackNotice,
-  trialDaysRemaining,
   PRO_FALLBACK_NOTICE_MARKER,
 } from '../../src/shared/cmem-gateway.js';
-import { proTrialUrl } from '../../src/shared/pro-promo.js';
 
 describe('cmem-gateway', () => {
   let tempDir: string;
@@ -323,13 +321,13 @@ describe('cmem-gateway', () => {
     it('replaces an oversized cmem.ai link with the renewal link, since a cut link is broken', () => {
       const notice = proFallbackNotice({ message: 'm', url: `https://cmem.ai/${'A'.repeat(5_000)}` });
 
-      expect(notice.endsWith(`Manage your plan: ${proTrialUrl('fallback')}`)).toBe(true);
+      expect(notice.endsWith(`Manage your plan: https://cmem.ai/pro`)).toBe(true);
     });
 
     it('is plan-neutral without the gateway\'s words, and keeps the renewal link', () => {
       expect(proFallbackNotice({ message: ' \n\t ', url: '' })).toBe([
         'cmem.ai memory is paused for this account.',
-        `Memory is using your Anthropic plan for now. Manage your plan: ${proTrialUrl('fallback')}`,
+        `Memory is using your Anthropic plan for now. Manage your plan: https://cmem.ai/pro`,
       ].join('\n'));
     });
   });
@@ -339,33 +337,6 @@ describe('cmem-gateway', () => {
       expect(hasShownProFallbackNotice(tempDir)).toBe(false);
       markProFallbackNoticeShown(tempDir);
       expect(hasShownProFallbackNotice(tempDir)).toBe(true);
-    });
-  });
-
-  describe('trialDaysRemaining', () => {
-    const now = Date.parse('2026-08-26T12:00:00.000Z');
-
-    it('returns null when the end date is absent or unparseable', () => {
-      expect(trialDaysRemaining('', now)).toBeNull();
-      expect(trialDaysRemaining('   ', now)).toBeNull();
-      expect(trialDaysRemaining(undefined, now)).toBeNull();
-      expect(trialDaysRemaining(null, now)).toBeNull();
-      expect(trialDaysRemaining('not-a-date', now)).toBeNull();
-    });
-
-    it('returns 0 when the trial ends later today', () => {
-      expect(trialDaysRemaining('2026-08-26T18:00:00.000Z', now)).toBe(0);
-      expect(trialDaysRemaining('2026-08-26T12:00:00.000Z', now)).toBe(0);
-    });
-
-    it('returns whole days for a future end date', () => {
-      expect(trialDaysRemaining('2026-08-29T18:00:00.000Z', now)).toBe(3);
-      expect(trialDaysRemaining('2026-09-02T12:00:00.000Z', now)).toBe(7);
-    });
-
-    it('goes negative once the end date is past (caller hides N < 0)', () => {
-      expect(trialDaysRemaining('2026-08-26T11:00:00.000Z', now)).toBeLessThan(0);
-      expect(trialDaysRemaining('2026-08-19T12:00:00.000Z', now)).toBe(-7);
     });
   });
 });

@@ -487,7 +487,7 @@ export function recordCmemFallbackIfEligible(
     // dropping it. This diagnostic explains why the fallback did not arm.
     logger.warn(
       'SESSION',
-      'Could not persist the cmem trial-expiry fallback; retaining normal provider failure handling',
+      'Could not persist the cmem gateway fallback; retaining normal provider failure handling',
       detail,
       writeError instanceof Error ? writeError : new Error(String(writeError)),
     );
@@ -496,7 +496,7 @@ export function recordCmemFallbackIfEligible(
   logger.info(
     'SESSION',
     rejection
-      ? 'Recorded cmem trial-expiry fallback; dispatch switches to the Claude provider'
+      ? 'Recorded cmem gateway fallback; dispatch switches to the Claude provider'
       : 'cmem gateway re-probe failed; memory stays on the Claude provider',
     { ...detail, fallbackAt },
   );

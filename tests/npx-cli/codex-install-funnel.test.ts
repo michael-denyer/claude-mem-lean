@@ -11,13 +11,13 @@ import { providerNeedsAccount } from '../../src/npx-cli/commands/install.js';
 const installSource = readFileSync(join(__dirname, '..', '..', 'src', 'npx-cli', 'commands', 'install.ts'), 'utf-8');
 
 describe('Codex install keeps the sign-in funnel', () => {
-  it('leaves the interactive provider menu at CMEM Pro (pre-selected) and Claude', () => {
+  it('leaves the interactive provider menu at Claude (pre-selected) and CMEM Pro', () => {
     const start = installSource.indexOf('await p.multiselect<ProviderChoice>(');
     expect(start).toBeGreaterThan(-1);
     const menu = installSource.slice(start, installSource.indexOf('required: true', start));
     expect(menu).toContain("{ value: 'cmem'");
     expect(menu).toContain("{ value: 'claude'");
-    expect(menu).toContain("initialValues: ['cmem']");
+    expect(menu).toContain("initialValues: ['claude']");
     expect(menu).not.toContain('codex');
   });
 

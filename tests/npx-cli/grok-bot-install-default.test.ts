@@ -62,7 +62,7 @@ describe('grok-bot install default provider', () => {
     expect(cli).toContain("from './installer-provider-choice.js'");
     expect(cli).toContain('resolveInstallerProviderChoice');
     expect(cli).toContain('process.stdin.isTTY');
-    expect(install).toContain("initialValues: ['cmem']");
+    expect(install).toContain("initialValues: ['claude']");
     expect(grokInstaller).toContain('GROK_BOT_AGENT_DATA');
   });
 });

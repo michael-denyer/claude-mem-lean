@@ -23,7 +23,6 @@ import {
   hasShownProFallbackNotice,
   markProFallbackNoticeShown,
   proFallbackNotice,
-  trialDaysRemaining,
 } from '../../shared/cmem-gateway.js';
 import { resolveRuntimeContext, type ServerRuntimeContext } from '../../services/hooks/runtime-selector.js';
 import type { ContextInput } from '../../services/context/types.js';
@@ -265,19 +264,7 @@ export const contextHandler: EventHandler = {
     // back to the plain additionalContext for terminal display.
     const displayContent = coloredTimeline || (platform === 'antigravity-cli' ? additionalContext : '');
 
-    // Days-remaining nicety: while the free trial is active (plan 'trial', an
-    // end date stored, no fallback), append the countdown. Computed locally —
-    // no network — and display-only: nothing is enabled or disabled by it.
-    const daysLeft = !fallbackActive && settings.CLAUDE_MEM_PRO_PLAN === 'trial'
-      ? trialDaysRemaining(settings.CLAUDE_MEM_PRO_TRIAL_ENDS_AT)
-      : null;
-    const trialDaysLine = daysLeft !== null && daysLeft >= 0
-      ? `claude-mem free trial: ${daysLeft} day${daysLeft === 1 ? '' : 's'} left`
-      : null;
-
-    const systemMessage = showTerminalOutput && displayContent
-      ? `${displayContent}${trialDaysLine ? `\n\n${trialDaysLine}` : ''}`
-      : undefined;
+    const systemMessage = showTerminalOutput && displayContent ? displayContent : undefined;
 
     return {
       hookSpecificOutput: {

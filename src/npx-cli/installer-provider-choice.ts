@@ -9,7 +9,7 @@ type InstallerProviderChoice = InstallerProviderId | 'cmem';
  *
  * Applied at the CLI boundary in `src/npx-cli/index.ts` for non-TTY
  * `install --ide grok-bot`. Interactive grok-bot still shows the CMEM/Claude
- * prompt (`initialValues: ['cmem']`). The 'cmem' sentinel must never be
+ * prompt (`initialValues: ['claude']`). The 'cmem' sentinel must never be
  * written to settings.json.
  */
 export function resolveInstallerProviderChoice(

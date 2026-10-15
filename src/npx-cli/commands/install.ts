@@ -45,7 +45,6 @@ import {
   PROVIDER_PROMPT_MESSAGE,
 } from '../cmem-pro-costs.js';
 import { clearProFallback, isCmemGatewayUrl } from '../../shared/cmem-gateway.js';
-import { PRO_TRIAL_LABEL } from '../../shared/pro-promo.js';
 import {
   buildAnthropicMaxLocalSettings,
   buildCmemActivationSettings,
@@ -1215,10 +1214,8 @@ export async function promptProvider(
           { value: 'cmem', label: labels.cmem, hint: labels.cmemHint },
           { value: 'claude', label: labels.claude, hint: labels.claudeHint },
         ],
-        // CMEM Pro pre-selected: it is the recommended path and the one the
-        // funnel is built around. Selecting it no longer means "pay now" —
-        // it opens the offer page to read first.
-        initialValues: ['cmem'],
+        // The user's own Anthropic plan is the default; CMEM Pro is opt-in.
+        initialValues: ['claude'],
         required: true,
       });
       // @clack/prompts 1.8: isCancel narrows to unique CANCEL_SYMBOL, not generic symbol.
@@ -1996,7 +1993,7 @@ export async function offerDeferredLogin(options: InstallOptions, version: strin
   // Telemetry first so that, in CLAUDE_MEM_TELEMETRY_DEBUG=1 mode, its stderr
   // line cannot land after the relay instruction an agent reads last.
   await captureCliEvent('installer_oauth_deferred', { version, interactive: false });
-  log.info('Optional: sign in to claude-mem to unlock cloud sync and the CMEM Pro trial.');
+  log.info('Optional: sign in to claude-mem to enable cloud sync.');
   log.info(`Sign-in link: ${pairing.authorizationUrl}`);
   log.info('AGENT: show this link to the user so they can finish signing in. Do not open it yourself; the install is already complete.');
 }
@@ -2043,7 +2040,7 @@ export async function completeCmemTrialPairing(
   }
   pairing.delivered = result;
   clearProFallback();
-  log.success(`CMEM Pro ${PRO_TRIAL_LABEL} active.`);
+  log.success('CMEM Pro active.');
   await captureCliEvent('trial_activated', { version });
   return result;
 }

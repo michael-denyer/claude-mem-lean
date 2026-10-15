@@ -81,7 +81,7 @@ describe('sync-health helpers', () => {
     const sustained = { ...base, failingSinceAt: now - SYNC_FAILING_WARN_AFTER_MS };
     expect(renderSyncHealthWarning(sustained, now)).toContain('Cloud sync has been failing for 15 minutes');
     const paused: SyncHealthState = { ...base, state: 'auth_paused', code: 'subscription_inactive', consecutiveFailures: 0 };
-    expect(renderSyncHealthWarning(paused, now)).toContain('trial or subscription is not active');
+    expect(renderSyncHealthWarning(paused, now)).toContain('subscription is not active');
     expect(renderSyncHealthWarning({ ...base, state: 'ok' }, now)).toBe('');
     expect(renderSyncHealthWarning(null, now)).toBe('');
   });

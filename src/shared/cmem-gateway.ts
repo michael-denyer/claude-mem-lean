@@ -28,7 +28,6 @@ import { paths, USER_SETTINGS_PATH } from './paths.js';
 import { SettingsDefaultsManager } from './SettingsDefaultsManager.js';
 import { updateSettingsDocument } from './settings-document.js';
 import { emitDiagnostic } from './hook-io.js';
-import { proTrialUrl } from './pro-promo.js';
 import { relayedLine, relayedLink } from './relayed-text.js';
 
 /**
@@ -184,9 +183,12 @@ export function proFallbackNotice(notice: ProFallbackNotice, role: CmemGatewayRo
   ].join('\n');
 }
 
+/** Where a cmem.ai account manages its plan. */
+const CMEM_PLAN_URL = 'https://cmem.ai/pro';
+
 function planLink(url: string | undefined): string {
   const link = relayedLink(url);
-  return link !== null && new URL(link).hostname === 'cmem.ai' ? link : proTrialUrl('fallback');
+  return link !== null && new URL(link).hostname === 'cmem.ai' ? link : CMEM_PLAN_URL;
 }
 
 /**
@@ -289,23 +291,4 @@ export function markProFallbackNoticeShown(dataDir: string = paths.dataDir()): v
     encoding: 'utf-8',
     mode: 0o600,
   });
-}
-
-const DAY_MS = 86_400_000;
-
-/**
- * Whole days until the stored trial end date — 0 when it ends later today,
- * negative once past, null when absent/unparseable. Computed locally from
- * CLAUDE_MEM_PRO_TRIAL_ENDS_AT; no network. Display-only nicety: nothing is
- * ever enabled or disabled from this value (the fallback is event-driven).
- */
-export function trialDaysRemaining(
-  endsAtIso: string | undefined | null,
-  nowMs: number = Date.now(),
-): number | null {
-  const trimmed = (endsAtIso ?? '').trim();
-  if (!trimmed) return null;
-  const endMs = Date.parse(trimmed);
-  if (Number.isNaN(endMs)) return null;
-  return Math.floor((endMs - nowMs) / DAY_MS);
 }
