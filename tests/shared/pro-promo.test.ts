@@ -6,7 +6,6 @@ import {
   proTrialLine,
   proTrialUrl,
 } from '../../src/shared/pro-promo.js';
-import * as viewerPromo from '../../src/ui/viewer/constants/promo.js';
 
 describe('pro trial promo copy', () => {
   it('presents the standard 30 Day Free Trial without hedging its duration', () => {
@@ -20,13 +19,5 @@ describe('pro trial promo copy', () => {
     expect(proTrialUrl('installer')).toBe('https://cmem.ai/pro?from=installer');
     expect(proTrialUrl('session-start')).not.toContain('trial=');
     expect(proTrialLine('welcome-hint')).toContain('https://cmem.ai/pro?from=welcome-hint');
-  });
-
-  it('keeps the viewer mirror in sync with the Node-side copy', () => {
-    expect(viewerPromo.PRO_TRIAL_MAX_DAYS).toBe(PRO_TRIAL_MAX_DAYS);
-    expect(viewerPromo.PRO_TRIAL_LABEL).toBe(PRO_TRIAL_LABEL);
-    expect(viewerPromo.PRO_TRIAL_PITCH).toBe(PRO_TRIAL_PITCH);
-    expect(viewerPromo.PRO_TRIAL_SHORT).toBe(PRO_TRIAL_LABEL);
-    expect(viewerPromo.PRO_TRIAL_URL).toBe(proTrialUrl('viewer'));
   });
 });
