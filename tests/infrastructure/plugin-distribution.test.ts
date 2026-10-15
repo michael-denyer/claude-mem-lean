@@ -154,13 +154,6 @@ describe('Plugin Distribution - Required Files', () => {
     'plugin/skills/mem-search/SKILL.md',
     'plugin/skills/mode-creator/SKILL.md',
     '.agents/plugins/marketplace.json',
-    '.cursor-plugin/marketplace.json',
-    'claude-mem-cursor/.cursor-plugin/plugin.json',
-    'claude-mem-cursor/mcp.json',
-    'claude-mem-cursor/hooks/hooks.json',
-    'claude-mem-grok-bot/.cursor-plugin/plugin.json',
-    'claude-mem-grok-bot/mcp.json',
-    'claude-mem-grok-bot/skills/host-observer/SKILL.md',
   ];
 
   for (const filePath of requiredFiles) {
@@ -299,32 +292,6 @@ describe('Plugin Distribution - Codex Marketplace', () => {
   });
 });
 
-
-describe('Plugin Distribution - Cursor Marketplace', () => {
-  it('ships independent Cursor and Grok Bot marketplace entries', () => {
-    const marketplace = readJson('.cursor-plugin/marketplace.json');
-    expect(marketplace.owner.name).toBe('Alex Newman');
-    expect(marketplace.plugins.map((plugin: any) => plugin.name)).toEqual([
-      'claude-mem-cursor',
-      'claude-mem-grok-bot',
-    ]);
-  });
-
-  it('wires Cursor hooks through the npx hook entrypoint', () => {
-    const hooks = readJson('claude-mem-cursor/hooks/hooks.json');
-    expect(hooks.hooks.beforeSubmitPrompt[0].command).toContain('npx -y claude-mem hook cursor session-init');
-    expect(hooks.hooks.stop[0].command).toContain('npx -y claude-mem hook cursor summarize');
-  });
-
-  it('ships the shared local and remote MCP definitions for both plugins', () => {
-    for (const relativePath of ['claude-mem-cursor/mcp.json', 'claude-mem-grok-bot/mcp.json']) {
-      const mcp = readJson(relativePath);
-      expect(mcp.mcpServers['claude-mem-local'].args).toEqual(['-y', 'claude-mem', 'mcp']);
-      const expected = 'Bearer ' + '${' + 'CLAUDE_MEM_MCP_TOKEN' + '}';
-      expect(mcp.mcpServers['claude-mem-remote'].headers.Authorization).toBe(expected);
-    }
-  });
-});
 
 describe('Plugin Distribution - hooks.json Integrity', () => {
   it('should have valid JSON in hooks.json', () => {

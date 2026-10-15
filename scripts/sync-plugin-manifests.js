@@ -14,10 +14,6 @@ const qoderPluginPath = path.join(rootDir, '.qoder-plugin', 'plugin.json');
 const bundledQoderPluginPath = path.join(rootDir, 'plugin', '.qoder-plugin', 'plugin.json');
 const claudePluginPath = path.join(rootDir, '.claude-plugin', 'plugin.json');
 const bundledClaudePluginPath = path.join(rootDir, 'plugin', '.claude-plugin', 'plugin.json');
-const cursorPluginPaths = [
-  path.join(rootDir, 'claude-mem-cursor', '.cursor-plugin', 'plugin.json'),
-  path.join(rootDir, 'claude-mem-grok-bot', '.cursor-plugin', 'plugin.json'),
-];
 
 function readJson(filePath) {
   return JSON.parse(fs.readFileSync(filePath, 'utf8'));
@@ -98,7 +94,7 @@ function normalizeRepositoryUrl(repository) {
 }
 
 function main() {
-  for (const filePath of [packageJsonPath, codexPluginPath, bundledCodexPluginPath, qoderPluginPath, bundledQoderPluginPath, claudePluginPath, bundledClaudePluginPath, ...cursorPluginPaths]) {
+  for (const filePath of [packageJsonPath, codexPluginPath, bundledCodexPluginPath, qoderPluginPath, bundledQoderPluginPath, claudePluginPath, bundledClaudePluginPath]) {
     if (!fs.existsSync(filePath)) {
       console.error(`Missing required file: ${filePath}`);
       process.exit(1);
@@ -112,7 +108,6 @@ function main() {
   const bundledQoderPlugin = readJson(bundledQoderPluginPath);
   const claudePlugin = readJson(claudePluginPath);
   const bundledClaudePlugin = readJson(bundledClaudePluginPath);
-  const cursorPlugins = cursorPluginPaths.map(readJson);
 
   writeJson(codexPluginPath, syncCodexPlugin(codexPlugin, pkg));
   writeJson(bundledCodexPluginPath, syncCodexPlugin(bundledCodexPlugin, pkg));
@@ -120,7 +115,6 @@ function main() {
   writeJson(bundledQoderPluginPath, syncCursorPlugin(bundledQoderPlugin, pkg));
   writeJson(claudePluginPath, syncClaudePlugin(claudePlugin, pkg));
   writeJson(bundledClaudePluginPath, syncClaudePlugin(bundledClaudePlugin, pkg));
-  cursorPluginPaths.forEach((filePath, index) => writeJson(filePath, syncCursorPlugin(cursorPlugins[index], pkg)));
 
   console.log('✓ Synced plugin manifests from package.json');
 }

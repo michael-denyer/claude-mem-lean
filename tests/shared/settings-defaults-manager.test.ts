@@ -569,19 +569,10 @@ describe('SettingsDefaultsManager', () => {
         expect(CURRENT).not.toBe(RETIRED);
       });
 
-      // The retired id shipped in all three copies at once; a default changed in
-      // one place only would leave the viewer or openclaw installs on a dead id.
-      it('keeps the viewer and openclaw installer copies of the default in sync', () => {
+      // The retired id shipped in both copies at once; a default changed in one
+      // place only would leave the viewer on a dead id.
+      it('keeps the viewer copy of the default in sync', () => {
         expect(VIEWER_DEFAULT_SETTINGS.CLAUDE_MEM_OPENROUTER_MODEL).toBe(CURRENT);
-
-        const installer = readFileSync(new URL('../../openclaw/install.sh', import.meta.url), 'utf-8');
-        const installerModels = [
-          // settings defaults and the openrouter provider override
-          ...installer.matchAll(/CLAUDE_MEM_OPENROUTER_MODEL(?::| =) '([^']+)'/g),
-          // completion summary
-          ...installer.matchAll(/provider_display="OpenRouter \(([^)]+)\)"/g),
-        ].map((match) => match[1]);
-        expect(installerModels).toEqual([CURRENT, CURRENT, CURRENT]);
       });
 
       it.each([

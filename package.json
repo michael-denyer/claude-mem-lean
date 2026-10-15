@@ -53,7 +53,6 @@
     "plugin/sqlite",
     "plugin/skills",
     "plugin/ui",
-    "openclaw",
     "omp",
     "pi",
     "dsh",
