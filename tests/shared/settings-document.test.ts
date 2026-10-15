@@ -32,15 +32,15 @@ describe('settings document boundary', () => {
     const path = tempFile(JSON.stringify({
       theme: 'dark',
       CLAUDE_MEM_OPENROUTER_API_KEY: '****',
-      CLAUDE_MEM_CLOUD_SYNC_TOKEN: '',
-      env: { CLAUDE_MEM_OPENROUTER_API_KEY: 'sk-or-v1-real', CLAUDE_MEM_CLOUD_SYNC_TOKEN: 'sync-token' },
+      CLAUDE_MEM_GEMINI_API_KEY: '',
+      env: { CLAUDE_MEM_OPENROUTER_API_KEY: 'sk-or-v1-real', CLAUDE_MEM_GEMINI_API_KEY: 'gemini-real' },
     }));
 
     expect(updateSettingsDocument(path, { CLAUDE_MEM_MODEL: 'new' }).status).toBe('updated');
 
     expect(JSON.parse(readFileSync(path, 'utf8'))).toEqual({
       theme: 'dark',
-      env: { CLAUDE_MEM_OPENROUTER_API_KEY: 'sk-or-v1-real', CLAUDE_MEM_CLOUD_SYNC_TOKEN: 'sync-token', CLAUDE_MEM_MODEL: 'new' },
+      env: { CLAUDE_MEM_OPENROUTER_API_KEY: 'sk-or-v1-real', CLAUDE_MEM_GEMINI_API_KEY: 'gemini-real', CLAUDE_MEM_MODEL: 'new' },
     });
   });
 

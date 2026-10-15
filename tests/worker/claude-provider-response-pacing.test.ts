@@ -223,7 +223,6 @@ function createHarness(backlog: number, payloadChars = 200) {
       linkToolUsesToObservation: () => 0,
     }),
     getChromaSync: () => null,
-    getCloudSync: () => null,
   };
   const sessionManager = new SessionManager(dbManager as never);
   const session = createSession();

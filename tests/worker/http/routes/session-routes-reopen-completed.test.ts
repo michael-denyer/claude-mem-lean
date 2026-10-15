@@ -40,7 +40,6 @@ describe('session-init reopens a continued session (#4080)', () => {
   function buildRoutes(): SessionRoutes {
     const dbManager = {
       getSessionStore: () => store,
-      getCloudSync: () => undefined,
       getChromaSync: () => undefined,
     };
     const sessionManager = { getSession: () => undefined };

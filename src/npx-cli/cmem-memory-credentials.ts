@@ -312,7 +312,7 @@ export function buildCmemActivationSettings(
 
 /**
  * Make the Anthropic Max choice genuinely local, including on a reinstall
- * after CMEM Pro. Cloud credentials and staged CMEM material are removed. An
+ * after CMEM Pro. Staged CMEM material is removed. An
  * active CMEM gateway key is removed too, while unrelated personal OpenRouter
  * credentials are left untouched for a future explicit provider switch.
  */
@@ -325,11 +325,6 @@ export function buildAnthropicMaxLocalSettings(
   return {
     CLAUDE_MEM_PROVIDER: 'claude',
     CLAUDE_MEM_CLAUDE_AUTH_METHOD: 'subscription',
-    CLAUDE_MEM_CLOUD_SYNC_TOKEN: '',
-    CLAUDE_MEM_CLOUD_SYNC_USER_ID: '',
-    CLAUDE_MEM_CLOUD_SYNC_HUB_URL: '',
-    CLAUDE_MEM_CLOUD_SYNC_DEVICE_ID: '',
-    CLAUDE_MEM_CLOUD_SYNC_DEVICE_NAME: '',
     CLAUDE_MEM_PRO_MEMORY_KEY: '',
     CLAUDE_MEM_PRO_MEMORY_BASE_URL: '',
     CLAUDE_MEM_PRO_MEMORY_MODEL: '',

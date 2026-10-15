@@ -1,6 +1,6 @@
 import { emitContextInvalidation } from '../../shared/context-invalidation.js';
-import { Database, type SQLQueryBindings, type Statement } from 'bun:sqlite';
-import { createHash, randomUUID } from 'crypto';
+import { Database, type SQLQueryBindings } from 'bun:sqlite';
+import { createHash } from 'crypto';
 import { DATA_DIR, DB_PATH, ensureDir, OBSERVER_SESSIONS_PROJECT, USER_SETTINGS_PATH } from '../../shared/paths.js';
 import { logger } from '../../utils/logger.js';
 import type { ProjectKeySource } from '../../utils/project-name.js';
@@ -53,9 +53,6 @@ import { streamRows } from './stream-rows.js';
 import { OBSERVATIONS_FTS_TRIGGERS_SQL, SESSION_SUMMARIES_FTS_TRIGGERS_SQL } from './SessionSearch.js';
 import {
   assertCanonicalDecimal,
-  incrementCanonicalDecimal,
-  validateCanonicalMutation,
-  type CanonicalMutation,
 } from '../sync/CanonicalContent.js';
 
 // A Telegram send normally completes in seconds. A five-minute lease absorbs
@@ -64,11 +61,11 @@ import {
 export const TELEGRAM_WRAPUP_CLAIM_STALE_AFTER_MS = 5 * 60_000;
 
 /**
- * Coerce a value to something bun:sqlite can bind. The cloud/export shape
- * (CloudSync `toCloud`) carries columns like facts/concepts/files_read as real
- * arrays, but locally they are stored as JSON strings. bun's driver rejects
- * arrays/objects with "Binding expected string, TypedArray, boolean, number,
- * bigint or null", so re-stringify any non-primitive right before binding.
+ * Coerce a value to something bun:sqlite can bind. The export shape carries
+ * columns like facts/concepts/files_read as real arrays, but locally they are
+ * stored as JSON strings. bun's driver rejects arrays/objects with "Binding
+ * expected string, TypedArray, boolean, number, bigint or null", so
+ * re-stringify any non-primitive right before binding.
  */
 const coerceBindValue = <T>(value: T): T | string | null =>
   typeof value === 'object' && value !== null ? JSON.stringify(value) : value ?? null;
@@ -133,19 +130,6 @@ interface SummaryDetailRow {
   created_at_epoch: number;
 }
 
-export interface SessionStoreOptions {
-  /**
-   * Whether this store may enqueue mutation ops into sync_outbox. The only
-   * consumer of that queue is CloudSync's drain, and DatabaseManager
-   * constructs CloudSync iff cloud sync is fully credentialed — so the
-   * worker bootstrap passes the same configuration state here, and an
-   * unconfigured install produces no ops it can never drain. Defaults to
-   * true (the pre-flag behavior) for direct constructions that never wire
-   * the flag.
-   */
-  syncOpsEnabled?: boolean;
-}
-
 interface SdkSessionDetailRow {
   id: number;
   content_session_id: string;
@@ -190,12 +174,8 @@ function positiveIntegerRowLimit(limit: unknown): number | undefined {
 
 export class SessionStore {
   public db: Database;
-  private readonly syncOpsEnabled: boolean;
-  /** See cachedStatement. Keyed by SQL text; only fixed SQL ever goes in. */
-  private readonly statementCache = new Map<string, Statement>();
 
-  constructor(dbPathOrDb: string | Database = DB_PATH, options: SessionStoreOptions = {}) {
-    this.syncOpsEnabled = options.syncOpsEnabled ?? true;
+  constructor(dbPathOrDb: string | Database = DB_PATH) {
     if (dbPathOrDb instanceof Database) {
       this.db = dbPathOrDb;
     } else {
@@ -1094,24 +1074,16 @@ export class SessionStore {
   // equally unreadable before and after v49 for every json_each reader, so
   // skipping them changes no behavior; this is an explicit domain-state
   // check, not error swallowing.
-  //
-  // Corrected NATIVE rows must re-sync: the row body changed, so bump
-  // sync_rev and re-null synced_at (mirroring requeuePromptSync) — the next
-  // drain re-pushes the corrected body at the higher rev and replicas apply
-  // it via the rev guard. Replica rows (origin_device_id NOT NULL) are
-  // normalized locally only; their repair travels from THEIR origin device.
   private normalizeConceptTags(): void {
     const applied = this.db.prepare('SELECT version FROM schema_versions WHERE version = ?').get(49) as SchemaVersion | undefined;
     if (applied) return;
 
     let changedCount = 0;
     const tx = this.db.transaction(() => {
-      const affected = this.db.prepare(`
-        SELECT CAST(id AS TEXT) AS id, origin_device_id, CAST(sync_rev AS TEXT) AS sync_rev
-        FROM observations
+      changedCount = (this.db.prepare(`
+        SELECT COUNT(*) AS n FROM observations
         WHERE concepts LIKE '%:%' AND json_valid(concepts)
-      `).all() as Array<{ id: string; origin_device_id: string | null; sync_rev: string }>;
-      changedCount = affected.length;
+      `).get() as { n: number }).n;
 
       this.db.run(`
         UPDATE observations
@@ -1123,15 +1095,6 @@ export class SessionStore {
           FROM json_each(observations.concepts))
         WHERE concepts LIKE '%:%' AND json_valid(concepts)
       `);
-
-      for (const row of affected) {
-        if (row.origin_device_id !== null) continue;
-        const nextRev = incrementCanonicalDecimal(row.sync_rev);
-        this.db.prepare(`
-          UPDATE observations SET sync_rev = ?, synced_at = NULL
-          WHERE id = ? AND origin_device_id IS NULL
-        `).run(nextRev, row.id);
-      }
 
       this.db.prepare('INSERT OR IGNORE INTO schema_versions (version, applied_at) VALUES (?, ?)').run(49, new Date().toISOString());
     });
@@ -2584,143 +2547,6 @@ export class SessionStore {
         WHERE session_db_id = ?
       `).run(memorySessionId, sessionDbId);
     })();
-    if (memorySessionId) this.requeuePromptSync(sessionDbId);
-  }
-
-  /**
-   * Enqueue one mutation op for the sync hub (kind='mutation'). The op UUID
-   * is minted HERE, once, and stored with the queued op — CloudSync's drain
-   * reuses it on every push retry so the hub's
-   * (origin_device, kind, origin_id, rev) index dedupes replays (REV MINTING
-   * RULES, SyncApply.ts). Pure SQL, no notify(): callers on the worker
-   * connection nudge CloudSync themselves; the startup drain catches the
-   * rest.
-   *
-   * Producer gate: acked ops are DELETEd by CloudSync's drain — the queue's
-   * ONLY retention path — and CloudSync exists iff cloud sync is fully
-   * credentialed. With syncOpsEnabled false (unconfigured install) this
-   * no-ops instead of growing sync_outbox forever.
-   *
-   * Supersede, don't append (set_prompt_session): every session
-   * re-registration re-emits the repair for EVERY prompt in the session
-   * (requeuePromptSync), and the mutation site bumps the prompt's sync_rev
-   * before each enqueue — so per target the newest op always carries the
-   * complete field set at the highest rev, and a still-queued older op is
-   * dead weight. Replicas apply by the op.rev >= row sync_rev guard, so
-   * dropping an unsent superseded op cannot regress them; one already pushed
-   * (ack lost mid-flight) is ordered before the newer op in the hub log and
-   * converges the same way. This bounds the outbox at one
-   * set_prompt_session row per prompt regardless of re-registration count.
-   *
-   * Its statements are cached (cachedStatement): requeuePromptSync calls this
-   * once per prompt.
-   */
-  private enqueueMutationOp(rev: string | number, body: CanonicalMutation): void {
-    if (!this.syncOpsEnabled) return;
-    // set_prompt_session records NULL as the durable "this device" marker;
-    // validate the exact mutation shape/UTF-8 bounds with a temporary valid
-    // device id before appending. CloudSync substitutes the resolved device
-    // id exactly once when it snapshots the canonical wire operation.
-    const candidate = JSON.parse(JSON.stringify(body)) as Record<string, unknown>;
-    if (candidate.op === 'set_prompt_session') {
-      const target = candidate.target as Record<string, unknown> | undefined;
-      if (target?.origin_device_id === null) target.origin_device_id = 'self';
-    }
-    validateCanonicalMutation(candidate);
-    if (body.op === 'set_prompt_session') {
-      // json_valid guards tampered rows from aborting the enqueue (the v49
-      // precedent); every writer stores JSON.stringify output. No rev guard:
-      // the sync_rev bump above each enqueue makes revs monotonic per
-      // target, so the incoming op always supersedes what is queued.
-      this.cachedStatement(`
-        DELETE FROM sync_outbox
-        WHERE json_valid(body)
-          AND json_extract(body, '$.op') = 'set_prompt_session'
-          AND json_extract(body, '$.target.origin_device_id') IS ?
-          AND json_extract(body, '$.target.origin_local_id') = ?
-      `).run(
-        (body.target?.origin_device_id ?? null) as string | null,
-        String(body.target?.origin_local_id ?? ''),
-      );
-    }
-    this.cachedStatement(`
-      INSERT INTO sync_outbox (op_uuid, rev, body, created_at_epoch)
-      VALUES (?, ?, ?, ?)
-    `).run(randomUUID(), String(rev), JSON.stringify(body), Date.now());
-  }
-
-  /**
-   * Prompt→session repair as an ordered sync op (plan Phase 3 task 2):
-   * prompts are captured (and pushed) before the SDK session registers its
-   * memory_session_id, so their first push carries NULL join fields. Once
-   * the mapping lands, each affected NATIVE prompt row gets sync_rev bumped
-   * by 1 with synced_at re-nulled — the next flush re-pushes the corrected
-   * row body at the higher rev (replicas apply it via the row-op rev guard),
-   * and a set_prompt_session mutation op is enqueued at that same post-bump
-   * rev (SyncApply REV MINTING RULES) so replicas that already hold the
-   * rev-1 row link it to the session even before the corrected row op lands.
-   * target.origin_device_id is stored as NULL ("this device") — CloudSync's
-   * drain substitutes its resolved device id at push time, keeping device
-   * identity single-sourced (see DEVICE IDENTITY in SyncApply.ts).
-   *
-   * Replica prompt rows (origin_device_id NOT NULL) are untouched: their
-   * repair travels through the log from THEIR origin device.
-   *
-   * This bump-then-repush ordering is also what made CloudSync's old
-   * stampGuard unnecessary: the drain stamps synced_at only where the acked
-   * rev still equals the row's sync_rev, so a registration landing while a
-   * POST is in flight leaves the row unsynced and it re-pushes corrected.
-   *
-   * With sync ops disabled the whole repair is skipped: the bump + re-null
-   * exist only so already-pushed rows re-push corrected, nothing pushes
-   * without CloudSync, and a prompt that first syncs after a later
-   * enablement resolves its session join fields at snapshot time anyway
-   * (the drain SELECT joins sdk_sessions). Skipping also keeps v47
-   * launch-baseline rows excluded instead of promoting them into sync
-   * eligibility via the rev bump.
-   */
-  private requeuePromptSync(sessionDbId: number): void {
-    if (!this.syncOpsEnabled) return;
-    // Cached statements throughout (cachedStatement): this runs on every
-    // session registration, once per prompt inside the loop below.
-    const session = this.cachedStatement(`
-      SELECT memory_session_id, project, content_session_id, platform_source
-      FROM sdk_sessions WHERE id = ?
-    `).get(sessionDbId) as {
-      memory_session_id: string | null;
-      project: string | null;
-      content_session_id: string | null;
-      platform_source: string | null;
-    } | undefined;
-    if (!session?.memory_session_id) return;
-
-    const tx = this.db.transaction(() => {
-      const prompts = this.cachedStatement(`
-        SELECT CAST(id AS TEXT) AS id, CAST(sync_rev AS TEXT) AS sync_rev FROM user_prompts
-        WHERE session_db_id = ? AND origin_device_id IS NULL
-      `).all(sessionDbId) as Array<{ id: string; sync_rev: string }>;
-      if (prompts.length === 0) return;
-
-      const bumpPromptRev = this.cachedStatement(`
-        UPDATE user_prompts SET sync_rev = ?, synced_at = NULL
-        WHERE id = ? AND origin_device_id IS NULL
-      `);
-      for (const prompt of prompts) {
-        const nextRev = incrementCanonicalDecimal(prompt.sync_rev);
-        bumpPromptRev.run(nextRev, prompt.id);
-        this.enqueueMutationOp(nextRev, {
-          op: 'set_prompt_session',
-          target: { origin_device_id: null, origin_local_id: prompt.id },
-          fields: {
-            memory_session_id: session.memory_session_id,
-            project: session.project,
-            content_session_id: session.content_session_id,
-            platform_source: session.platform_source,
-          },
-        });
-      }
-    });
-    tx();
   }
 
   markSessionCompleted(sessionDbId: number): void {
@@ -2750,7 +2576,7 @@ export class SessionStore {
    * Guarded on `status = 'completed'`, so it is a no-op for a row that is
    * already active, and it clears BOTH completion stamps — leaving the row
    * active with a stale `completed_at` would trade one wrong label for
-   * another. sdk_sessions rows do not sync, so there is no op to enqueue.
+   * another.
    */
   reopenCompletedSession(sessionDbId: number): void {
     this.db.prepare(`
@@ -2774,10 +2600,8 @@ export class SessionStore {
     }
 
     // REGISTER, DO NOT RE-REGISTER. `memory_session_id` is the FK parent key of
-    // `observations` and `session_summaries` (ON UPDATE CASCADE) and the join
-    // field `requeuePromptSync` pushes to replicas, so overwriting it is not a
-    // field update — it rewrites every memory the session owns and re-enqueues
-    // every prompt it has.
+    // `observations` and `session_summaries` (ON UPDATE CASCADE), so overwriting
+    // it is not a field update — it rewrites every memory the session owns.
     //
     // The caller that made this matter is ClaudeProvider: a fresh SDK process
     // mints a new session_id every turn, `resetCarriedMemorySessionId` clears the
@@ -2785,19 +2609,12 @@ export class SessionStore {
     // (`shouldResume` is a hardcoded false, so `resume` never receives it). The
     // condition below used to be `!==`, so every turn looked like a new identity.
     //
-    // MEASURED on one store: sync_outbox held 1,100,783 rows for 6,930 distinct
-    // prompts — 158.8x, 393 MB of an 854 MB database — with its worst single
-    // prompt carrying 3,464 rows and 3,464 DISTINCT memory_session_ids. That is
-    // `requeuePromptSync`, whose own docstring describes a one-time repair
-    // ("Once the mapping lands"), running once per turn per prompt instead.
-    //
     // A deliberate change of identity is still available through
     // `updateMemorySessionId`. "Ensure registered" means make sure one exists.
     if (session.memory_session_id === null) {
       this.db.prepare(`
         UPDATE sdk_sessions SET memory_session_id = ? WHERE id = ?
       `).run(memorySessionId, sessionDbId);
-      this.requeuePromptSync(sessionDbId);
 
       logger.info('DB', 'Registered memory_session_id before storage (FK fix)', {
         sessionDbId,
@@ -3487,10 +3304,6 @@ export class SessionStore {
     const nowEpoch = now.getTime();
     const normalizedPlatformSource = platformSource ? normalizePlatformSource(platformSource) : DEFAULT_PLATFORM_SOURCE;
     const storedUserPrompt = normalizeStoredPromptText(userPrompt);
-    if (customTitle) {
-      this.validateSetTitleMutation(contentSessionId, normalizedPlatformSource, customTitle);
-    }
-
     const existing = this.db.prepare(`
       SELECT id, platform_source
       FROM sdk_sessions
@@ -3514,21 +3327,10 @@ export class SessionStore {
         `).run(storedUserPrompt, existing.id, MEDIA_PROMPT_PLACEHOLDER);
       }
       if (customTitle) {
-        // SELECT-then-UPDATE, never a decision on `.run().changes`
-        // (bun:sqlite reports unreliable `changes` after RETURNING statements
-        // on this connection — see the note in SyncApply.applySetTitle). The
-        // set_title op is emitted only when the NULL-guarded fill actually
-        // landed, mirroring what replicas will apply.
-        const current = this.db.prepare(
-          'SELECT custom_title FROM sdk_sessions WHERE id = ?'
-        ).get(existing.id) as { custom_title: string | null } | undefined;
-        if (current && current.custom_title === null) {
-          this.db.prepare(`
-            UPDATE sdk_sessions SET custom_title = ?
-            WHERE id = ? AND custom_title IS NULL
-          `).run(customTitle, existing.id);
-          this.enqueueSetTitleOp(contentSessionId, normalizedPlatformSource, customTitle);
-        }
+        this.db.prepare(`
+          UPDATE sdk_sessions SET custom_title = ?
+          WHERE id = ? AND custom_title IS NULL
+        `).run(customTitle, existing.id);
       }
       return existing.id;
     }
@@ -3538,10 +3340,6 @@ export class SessionStore {
       (content_session_id, memory_session_id, project, platform_source, user_prompt, custom_title, started_at, started_at_epoch, status)
       VALUES (?, NULL, ?, ?, ?, ?, ?, ?, 'active')
     `).run(contentSessionId, project, normalizedPlatformSource, storedUserPrompt, customTitle || null, now.toISOString(), nowEpoch);
-
-    if (customTitle) {
-      this.enqueueSetTitleOp(contentSessionId, normalizedPlatformSource, customTitle);
-    }
 
     return Number(result.lastInsertRowid);
   }
@@ -3563,34 +3361,6 @@ export class SessionStore {
       | { cwd: string | null }
       | null;
     return row?.cwd ?? null;
-  }
-
-  /**
-   * Custom-title mutation op (plan Phase 3 task 2). sdk_sessions rows do not
-   * sync, so there is no sync_rev to bump and no synced_at to null — the
-   * title travels ONLY as a set_title mutation op. Per the SyncApply REV
-   * MINTING RULES, set_title always emits rev 1 (rev is not consulted on
-   * apply; titles converge by hub-log order plus parking), and the target is
-   * the (platform_source, content_session_id) identity because no
-   * memory_session_id is registered at session-creation time.
-   */
-  private enqueueSetTitleOp(contentSessionId: string, platformSource: string, customTitle: string): void {
-    const mutation = this.validateSetTitleMutation(contentSessionId, platformSource, customTitle);
-    this.enqueueMutationOp('1', mutation);
-  }
-
-  private validateSetTitleMutation(
-    contentSessionId: string,
-    platformSource: string,
-    customTitle: string,
-  ): CanonicalMutation {
-    const mutation: CanonicalMutation = {
-      op: 'set_title',
-      target: { content_session_id: contentSessionId, platform_source: platformSource },
-      fields: { custom_title: customTitle },
-    };
-    validateCanonicalMutation(mutation);
-    return mutation;
   }
 
   saveUserPrompt(contentSessionId: string, promptNumber: number, promptText: string, sessionDbId?: number, nativePromptId?: string, nativePromptHash?: string): number {
@@ -4392,26 +4162,6 @@ export class SessionStore {
 
   close(): void {
     this.db.close();
-  }
-
-  /**
-   * One prepared statement per SQL text, for this store's hot write paths.
-   *
-   * requeuePromptSync bumps and enqueues once per prompt of a session on every
-   * registration. A fresh `prepare()` per call made a native statement that
-   * lived until GC finalized it, and on long sessions they piled up until
-   * prepare() itself ran out of memory (#3537). bun's own `db.query()` cache is
-   * shared by every caller on the connection and bounded
-   * (Database.MAX_QUERY_CACHE_SIZE, 20 by default), so whether a statement
-   * stays cached there depends on what else ran.
-   */
-  private cachedStatement(sql: string): Statement {
-    let statement = this.statementCache.get(sql);
-    if (!statement) {
-      statement = this.db.prepare(sql);
-      this.statementCache.set(sql, statement);
-    }
-    return statement;
   }
 
   importSdkSession(session: {

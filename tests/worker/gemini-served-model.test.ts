@@ -29,7 +29,7 @@ describe('Gemini served-model attribution', () => {
         cleanup.push(() => store.close());
         const dbManager = {
           getSessionById: (id: number) => store.getSessionById(id),
-          getSessionStore: () => store, getChromaSync: () => null, getCloudSync: () => null,
+          getSessionStore: () => store, getChromaSync: () => null,
         } as unknown as DatabaseManager;
         const manager = new SessionManager(dbManager);
         const sid = store.createSDKSession(`gemini-version-${modelVersion}`, 'version-project', 'Record the edit');

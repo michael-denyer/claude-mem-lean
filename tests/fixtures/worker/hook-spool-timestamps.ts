@@ -33,7 +33,7 @@ const store = new SessionStore(':memory:');
 const db = {
   getSessionStore: () => store,
   getSessionById: (id: number) => store.getSessionById(id),
-  getChromaSync: () => null, getCloudSync: () => null,
+  getChromaSync: () => null,
 };
 const manager = new SessionManager(db as any);
 setIngestContext({ sessionManager: manager, dbManager: db as any,

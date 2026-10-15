@@ -10,7 +10,7 @@ const scenario = process.argv[2];
 const oversized = scenario !== 'normal-control';
 const enabled = scenario !== 'active-compression-control';
 const store = new SessionStore(':memory:');
-const db: any = { getSessionStore: () => store, getSessionById: (id: number) => store.getSessionById(id), getChromaSync: () => null, getCloudSync: () => null };
+const db: any = { getSessionStore: () => store, getSessionById: (id: number) => store.getSessionById(id), getChromaSync: () => null };
 const manager = new SessionManager(db);
 const id = store.createSDKSession('owned-pacing-compression', 'owned-project', 'Inspect owned file');
 const session = manager.initializeSession(id);

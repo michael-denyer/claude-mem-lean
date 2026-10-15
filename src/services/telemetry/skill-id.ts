@@ -13,7 +13,6 @@ export const FIRST_PARTY_SKILL_IDS = [
   'agent-cost-report',
   'babysit',
   'ccs-align',
-  'cloud-sync',
   'design-is',
   'do',
   'handoff',

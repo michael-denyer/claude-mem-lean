@@ -68,13 +68,12 @@ describe('mergeSettings: unreadable settings.json is quarantined, never reset', 
     const trialSettings = buildTrialReadySettings({
       setupToken: 'setup-token',
       userId: 'user-1',
-      hubUrl: 'https://hub.example.test',
       memoryKey: 'cm_pro_trial_memory_key',
       memoryBaseUrl: 'https://gateway.example.test/v1',
       memoryModel: 'gateway-model',
       plan: 'pro',
       trialEndsAt: null,
-    } as Parameters<typeof buildTrialReadySettings>[0], 'test-device');
+    } as Parameters<typeof buildTrialReadySettings>[0]);
 
     expect(mergeSettings(trialSettings, settingsPath)).toBe(true);
 

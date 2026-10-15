@@ -29,11 +29,6 @@ describe('viewer delete flow', () => {
     await expect(deleteFeedItem('observation', 42, fetchImpl)).rejects.toThrow('synced from another device');
   });
 
-  it('explains a 503: cloud sync cannot record the delete right now', async () => {
-    const fetchImpl = (async () => new Response('{"error":"cloud sync unavailable; refusing an unreplicated delete"}', { status: 503 })) as typeof fetch;
-    await expect(deleteFeedItem('summary', 3, fetchImpl)).rejects.toThrow('cloud sync is unavailable');
-  });
-
   it('explains an unreachable worker instead of surfacing a raw fetch error', async () => {
     const fetchImpl = (async () => { throw new TypeError('Failed to fetch'); }) as typeof fetch;
     await expect(deleteFeedItem('observation', 1, fetchImpl)).rejects.toThrow('worker could not be reached');

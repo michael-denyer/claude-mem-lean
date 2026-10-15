@@ -47,7 +47,7 @@ describe('Codex hook patch file evidence', () => {
         const store = new SessionStore(':memory:');
         cleanup.push(() => store.close());
         const db = { getSessionStore: () => store, getSessionById: (id: number) => store.getSessionById(id),
-          getChromaSync: () => null, getCloudSync: () => null } as unknown as DatabaseManager;
+          getChromaSync: () => null } as unknown as DatabaseManager;
         const manager = new SessionManager(db);
         let priorContext: IngestContext | null = null;
         try { priorContext = requireIngestContext(); } catch { /* no prior fixture */ }

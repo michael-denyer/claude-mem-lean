@@ -75,9 +75,6 @@ export function describeSessionDeleteFailure(status: number): string {
   if (status === 409) {
     return 'Not deleted: this session is still running, or holds memories synced from another device (delete those there).';
   }
-  if (status === 503) {
-    return 'Not deleted: cloud sync is unavailable, so the delete could not be recorded for your other devices. Try again once sync reconnects.';
-  }
   if (status === 404) {
     return 'Not deleted: this session is already gone.';
   }
@@ -85,8 +82,8 @@ export function describeSessionDeleteFailure(status: number): string {
 }
 
 /**
- * Delete a session and everything captured in it through the worker's
- * sync-safe endpoint. Rejects with a user-facing message.
+ * Delete a session and everything captured in it through the worker. Rejects
+ * with a user-facing message.
  */
 export async function deleteSession(ref: SessionRef, fetchImpl: typeof fetch = fetch): Promise<void> {
   const url = `${API_ENDPOINTS.SESSIONS}/${encodeURIComponent(ref.platformSource)}/${encodeURIComponent(ref.contentSessionId)}`;

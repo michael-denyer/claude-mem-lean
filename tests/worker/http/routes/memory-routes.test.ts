@@ -91,7 +91,6 @@ describe('MemoryRoutes — POST /api/memory/save (#2116)', () => {
         getOrCreateManualSession: mockGetOrCreateManualSession,
       }),
       getChromaSync: () => null,
-      getCloudSync: () => null,
     };
 
     routes = new MemoryRoutes(mockDbManager as any, 'claude-mem');

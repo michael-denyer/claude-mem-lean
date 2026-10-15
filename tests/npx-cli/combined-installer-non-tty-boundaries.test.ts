@@ -57,9 +57,6 @@ const personalSettings = {
   CLAUDE_MEM_SERVER_URL: 'http://127.0.0.1:37878',
   CLAUDE_MEM_SERVER_API_KEY: 'keep-server-key',
   CLAUDE_MEM_SERVER_PROJECT_ID: 'keep-server-project',
-  CLAUDE_MEM_CLOUD_SYNC_TOKEN: 'keep-account-token',
-  CLAUDE_MEM_CLOUD_SYNC_USER_ID: 'keep-account-user',
-  CLAUDE_MEM_CLOUD_SYNC_HUB_URL: 'https://sync.example.invalid',
   CLAUDE_MEM_WORKER_AUTOSTART: 'false',
 };
 // Provision valid personal credentials before imports; imports may seed/migrate

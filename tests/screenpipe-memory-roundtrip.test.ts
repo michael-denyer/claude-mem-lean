@@ -20,7 +20,6 @@ it('persists a Screenpipe note through the real worker route and reads it after 
   new MemoryRoutes({
     getSessionStore: () => store,
     getChromaSync: () => null,
-    getCloudSync: () => null,
   } as any, 'fallback-project').setupRoutes(app);
   const server = app.listen(0, '127.0.0.1');
   await once(server, 'listening');

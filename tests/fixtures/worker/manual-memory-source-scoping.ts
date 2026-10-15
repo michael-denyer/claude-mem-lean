@@ -69,7 +69,7 @@ sync.syncObservation = (...args: Parameters<typeof realSync>) => {
 };
 const dbManager = {
   getConnection: () => store.db, getSessionStore: () => store,
-  getCloudSync: () => null, getChromaSync: () => sync,
+  getChromaSync: () => sync,
 };
 const app = express();
 app.use(express.json());

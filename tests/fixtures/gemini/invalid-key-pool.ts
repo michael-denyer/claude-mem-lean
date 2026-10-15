@@ -8,7 +8,7 @@ import { SettingsDefaultsManager } from '../../../src/shared/SettingsDefaultsMan
 
 const scenario = process.argv[2];
 const store = new SessionStore(':memory:');
-const db: any = { getSessionStore: () => store, getSessionById: (id: number) => store.getSessionById(id), getChromaSync: () => null, getCloudSync: () => null };
+const db: any = { getSessionStore: () => store, getSessionById: (id: number) => store.getSessionById(id), getChromaSync: () => null };
 const manager = new SessionManager(db);
 const id = store.createSDKSession('owned-keypool-session', 'owned-keypool-project', 'Inspect owned file');
 const session = manager.initializeSession(id);

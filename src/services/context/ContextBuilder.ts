@@ -43,7 +43,6 @@ import {
   renderObserverQuotaCooldownNotice,
 } from '../../shared/observer-health.js';
 import { cooldownAppliesToCurrentAccount } from '../../shared/quota-cooldown.js';
-import { readSyncHealth, renderSyncHealthWarning } from '../../shared/sync-health.js';
 import { resolveRuntimeContext, type ServerRuntimeContext } from '../hooks/runtime-selector.js';
 import { fetchServerContextRows, type ServerContextRows } from './ServerContextRows.js';
 import { formatHeaderDateTime } from '../../shared/timeline-formatting.js';
@@ -255,12 +254,6 @@ export function observerHealthWarning(forHuman: boolean = false): string {
     notice = renderObserverHealthWarning(health);
   } else if (isObserverQuotaCooldownActive(health) && cooldown && cooldownAppliesToCurrentAccount(cooldown)) {
     notice = renderObserverQuotaCooldownNotice(health);
-  }
-  // Cloud sync health rides the same slot: a paused (401/403) or long-failing
-  // sync is the other outage users otherwise discover only by missing memories.
-  const syncNotice = renderSyncHealthWarning(readSyncHealth());
-  if (syncNotice) {
-    notice = notice ? `${notice}\n\n${syncNotice}` : syncNotice;
   }
   if (!notice) {
     return '';

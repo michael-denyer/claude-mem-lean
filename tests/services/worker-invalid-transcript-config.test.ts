@@ -6,8 +6,8 @@ import { WorkerService } from '../../src/services/worker-service.js';
 import { SettingsDefaultsManager } from '../../src/shared/SettingsDefaultsManager.js';
 import { logger } from '../../src/utils/logger.js';
 
-// Background init awaits startTranscriptWatcher before the Chroma backfill,
-// CloudSync, the pull loop and the MCP self-check. A config the watcher cannot
+// Background init awaits startTranscriptWatcher before the Chroma backfill and
+// the MCP self-check. A config the watcher cannot
 // run must turn off transcript capture only, so the method has to resolve.
 const root = mkdtempSync(join(tmpdir(), 'cm-worker-transcript-config-'));
 afterAll(() => rmSync(root, { recursive: true, force: true }));

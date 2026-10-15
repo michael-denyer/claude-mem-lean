@@ -985,7 +985,7 @@ describe('SessionStore migrations', () => {
     }
   });
 
-  it('v49 requeues corrected native rows for sync and leaves replicas and invalid JSON untouched', () => {
+  it('v49 normalizes prefixed concept tags without touching sync fields or invalid JSON', () => {
     const db = new Database(':memory:');
     try {
       new SessionStore(db);
@@ -1001,10 +1001,9 @@ describe('SessionStore migrations', () => {
            synced_at, sync_rev, origin_device_id, origin_local_id)
         VALUES ('mem-v49-sync', 'proj-v49-sync', 'discovery', ?, ?, ?, ?, ?, ?, ?, ?)
       `);
-      // (b) native changed row: already pushed (synced_at stamped) — must be requeued.
+      // (b) native changed row: concepts normalized, sync fields untouched.
       insertObs.run('NATIVE_CHANGED', '["gotcha: x"]', now, 1_700_000_000_000, 123456, '3', null, null);
-      // (c) replica changed row: normalized locally, but its repair travels
-      // from its origin device — sync fields must stay untouched.
+      // (c) replica changed row: normalized locally, sync fields untouched.
       insertObs.run('REPLICA_CHANGED', '["gotcha: y"]', now, 1_700_000_001_000, 999, '5', 'device-r', '7');
       // (d) colon-free native row: fully untouched, including sync fields.
       insertObs.run('NATIVE_CLEAN', '["pattern"]', now, 1_700_000_002_000, 777, '2', null, null);
@@ -1025,8 +1024,8 @@ describe('SessionStore migrations', () => {
 
       const native = read('NATIVE_CHANGED');
       expect(native.concepts).toBe('["gotcha"]');
-      expect(native.synced_at).toBeNull();
-      expect(native.sync_rev).toBe('4');
+      expect(native.synced_at).toBe(123456);
+      expect(native.sync_rev).toBe('3');
 
       const replica = read('REPLICA_CHANGED');
       expect(replica.concepts).toBe('["gotcha"]');

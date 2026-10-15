@@ -294,10 +294,9 @@ describe('installer trial-ready contract', () => {
 
   it('uses the exact two-option provider copy', () => {
     expect(buildProviderLabels()).toEqual({
-      cmem: 'CMEM Pro (Tokens for Observations + Real-Time Cloud Sync '
-        + 'for Claude.ai, ChatGPT.com, anything that accepts an MCP Connector)',
+      cmem: 'CMEM Pro (Tokens for Observations)',
       cmemHint: '',
-      claude: 'Use your Anthropic Max Plan (no cloud sync, uses tokens for observations)',
+      claude: 'Use your Anthropic Max Plan (uses tokens for observations)',
       claudeHint: '',
     });
     expect(PROVIDER_PROMPT_MESSAGE).toBe('Select Provider:\n================');
@@ -311,7 +310,7 @@ describe('installer trial-ready contract', () => {
     expect(labels.cmemHint).toBe('');
     expect(labels.claudeHint).toBe('');
     expect(labels.cmem).not.toMatch(/trial/i);
-    expect(labels.claude).toContain('no cloud sync');
+    expect(labels.claude).toContain('Anthropic Max Plan');
   });
 
   it('does not ask for the billing acknowledgement in the terminal', () => {
@@ -362,7 +361,6 @@ describe('installer trial-ready contract', () => {
     expect(ready).toEqual({
       userId: 'user_123',
       setupToken: 'setup_secret',
-      hubUrl: 'https://sync.cmem.ai',
       memoryKey: 'cm_pro_memory_secret',
       memoryBaseUrl: 'https://cmem.ai/api/inference/v1',
       memoryModel: 'cmem-observer-v2',
@@ -380,7 +378,6 @@ describe('installer trial-ready contract', () => {
     })).toEqual({
       userId: 'legacy_user',
       setupToken: 'legacy_one_shot_token',
-      hubUrl: 'https://legacy-sync.cmem.ai',
       memoryKey: 'legacy_one_shot_token',
       memoryBaseUrl: CMEM_PRO_BASE_URL,
       memoryModel: CMEM_PRO_MODEL,
@@ -395,7 +392,6 @@ describe('installer trial-ready contract', () => {
     expect(parseTrialReadyBody({
       status: 'ready',
       user_id: 'user_123',
-      setup_token: 'setup_secret',
     })).toBeNull();
     expect(parseTrialReadyBody({
       status: 'ready',
@@ -425,7 +421,6 @@ describe('installer trial-ready contract', () => {
     })).toEqual({
       userId: 'user_123',
       setupToken: 'setup_secret',
-      hubUrl: 'https://sync.cmem.ai',
       memoryKey: 'setup_secret',
       memoryBaseUrl: CMEM_PRO_BASE_URL,
       memoryModel: CMEM_PRO_MODEL,
@@ -438,20 +433,14 @@ describe('installer trial-ready contract', () => {
     const settings = buildTrialReadySettings({
       userId: 'user_123',
       setupToken: 'setup_secret',
-      hubUrl: 'https://sync.cmem.ai',
       memoryKey: 'cm_pro_memory_secret',
       memoryBaseUrl: 'https://cmem.ai/api/inference/v1',
       memoryModel: 'cmem-observer',
       plan: 'none',
       trialEndsAt: null,
-    }, 'test-device');
+    });
 
     expect(settings).toEqual({
-      CLAUDE_MEM_CLOUD_SYNC_TOKEN: 'setup_secret',
-      CLAUDE_MEM_CLOUD_SYNC_USER_ID: 'user_123',
-      CLAUDE_MEM_CLOUD_SYNC_HUB_URL: 'https://sync.cmem.ai',
-      CLAUDE_MEM_CLOUD_SYNC_DEVICE_ID: '',
-      CLAUDE_MEM_CLOUD_SYNC_DEVICE_NAME: 'test-device',
       CLAUDE_MEM_PRO_TRIAL_STATE: 'active',
       CLAUDE_MEM_PRO_TRIAL_ENDS_AT: '',
       CLAUDE_MEM_PRO_PLAN: 'none',
@@ -498,7 +487,6 @@ describe('installer trial-ready contract', () => {
 
     expect(output).toContain('__PAIRING_RESULT__={"plan":"trial","ready":true}');
     expect(output).not.toContain('LEGACY_TOKEN_MUST_NOT_LEAK');
-    expect(settings.CLAUDE_MEM_CLOUD_SYNC_TOKEN).toBe('LEGACY_TOKEN_MUST_NOT_LEAK');
     expect(settings.CLAUDE_MEM_PRO_MEMORY_KEY).toBe('LEGACY_TOKEN_MUST_NOT_LEAK');
     expect(settings.CLAUDE_MEM_PRO_MEMORY_BASE_URL).toBe(CMEM_PRO_BASE_URL);
     expect(settings.CLAUDE_MEM_PRO_MEMORY_MODEL).toBe(CMEM_PRO_MODEL);

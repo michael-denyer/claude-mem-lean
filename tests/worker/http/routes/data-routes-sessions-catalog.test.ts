@@ -17,7 +17,7 @@ describe('GET /api/sessions', () => {
 
     const routes = new DataRoutes(
       {} as any,
-      { getSessionStore: () => store, getCloudSync: () => null } as any,
+      { getSessionStore: () => store } as any,
       {} as any,
       {} as any,
       {} as any,

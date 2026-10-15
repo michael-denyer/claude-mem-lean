@@ -110,16 +110,6 @@ function mergedInto(dbPath: string, obsId: number): string | null {
   return row.merged_into_project;
 }
 
-/** The projects of every remap_project op queued for cloud sync. */
-function remappedProjects(dbPath: string): string[] {
-  const verify = new SessionStore(dbPath);
-  const ops = (verify.db.prepare('SELECT body FROM sync_outbox').all() as Array<{ body: string }>)
-    .map(op => JSON.parse(op.body))
-    .filter(op => op.op === 'remap_project');
-  verify.close();
-  return ops.map(op => op.where.project);
-}
-
 describe('orphaned worktree adoption (#2864)', () => {
   it('adopts observations whose worktree directory no longer exists', async () => {
     tempRoot = mkdtempSync(path.join(tmpdir(), 'claude-mem-2864-orphan-'));
@@ -488,20 +478,13 @@ describe('orphaned worktree adoption (#2864)', () => {
     expect(result.orphanedWorktrees).toEqual(['app/app']);
     expect(mergedInto(dbPath, doubledObsId)).toBe('app');
     expect(mergedInto(dbPath, repoObsId)).toBeNull();
-
-    const verify = new SessionStore(dbPath);
-    const ops = (verify.db.prepare('SELECT body FROM sync_outbox').all() as Array<{ body: string }>)
-      .map(op => JSON.parse(op.body))
-      .filter(op => op.op === 'remap_project');
-    verify.close();
-    expect(ops.map(op => op.where.project)).toEqual(['app/app']);
   }, 30_000);
 
   // #3641 — Codex puts worktrees at ~/.codex/worktrees/<id>/<repo>, so the
   // worktree basename equals the repo name and the composite key doubles to
   // `<repo>/<repo>`. Once that worktree is deleted the sweep must still fold the
-  // rows into the repo, non-destructively, and queue the remap for cloud sync.
-  it('adopts a deleted Codex worktree keyed <repo>/<repo> and queues the remap for sync', async () => {
+  // rows into the repo, non-destructively.
+  it('adopts a deleted Codex worktree keyed <repo>/<repo>', async () => {
     tempRoot = mkdtempSync(path.join(tmpdir(), 'claude-mem-2864-orphan-'));
     const mainRepo = path.join(tempRoot, 'app');
     const codexWorktree = path.join(tempRoot, 'codex', 'worktrees', 'a1b2', 'app');
@@ -528,17 +511,10 @@ describe('orphaned worktree adoption (#2864)', () => {
 
     const verify = new SessionStore(dbPath);
     const project = verify.db.prepare('SELECT project FROM observations WHERE id = ?').get(obsId) as { project: string };
-    const ops = (verify.db.prepare('SELECT body FROM sync_outbox').all() as Array<{ body: string }>)
-      .map(op => JSON.parse(op.body));
     verify.close();
 
     // Non-destructive: the stored key is untouched, only the alias is stamped.
     expect(project.project).toBe('app/app');
-    expect(ops).toContainEqual({
-      op: 'remap_project',
-      where: { project: 'app/app', merged_into_project_is_null: true },
-      fields: { merged_into_project: 'app' },
-    });
   }, 30_000);
 });
 
@@ -574,7 +550,6 @@ describe('adoption only trusts a gone checkout for folder-derived keys (gate P1-
       await adoptMergedWorktreesForAllKnownRepos({ dataDirectory });
 
       expect(mergedInto(dbPath, apiObsId)).toBeNull();
-      expect(remappedProjects(dbPath)).toEqual([]);
     }, 30_000);
   }
 
@@ -600,7 +575,6 @@ describe('adoption only trusts a gone checkout for folder-derived keys (gate P1-
     await adoptMergedWorktreesForAllKnownRepos({ dataDirectory });
 
     expect(mergedInto(dbPath, worktreeObsId)).toBe('acme');
-    expect(remappedProjects(dbPath)).toEqual(['acme/api']);
   }, 30_000);
 
   // Sessions record their checkout since sdk_sessions.cwd (v53). Rows written

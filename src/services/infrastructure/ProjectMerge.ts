@@ -2,7 +2,6 @@ import path from 'path';
 import { existsSync } from 'fs';
 import { logger } from '../../utils/logger.js';
 import { ChromaSync, type MergedIntoProjectTarget } from '../sync/ChromaSync.js';
-import { emitRemapProject, hasSyncLane } from '../sync/remap-outbox.js';
 import { resolveDbPath } from '../../shared/paths.js';
 import { SettingsDefaultsManager } from '../../shared/SettingsDefaultsManager.js';
 import { workerHttpRequest } from '../../shared/worker-utils.js';
@@ -27,9 +26,7 @@ class DryRunRollback extends Error {}
  *
  * Nothing is rewritten. Rows keep their `project` and are stamped
  * `merged_into_project = into`, the alias every read path already honors, the
- * same way worktree adoption folds a worktree into its repository. On a synced
- * database the stamp goes through emitRemapProject, so a remap_project op is
- * queued in the same transaction and cloud sync converges on every device.
+ * same way worktree adoption folds a worktree into its repository.
  * Chroma metadata is patched afterwards so semantic search follows; a failed
  * patch is retried by running the command again.
  *
@@ -81,24 +78,12 @@ export async function mergeProjectInto(opts: {
     ).all(from, into) as Array<{ id: number }>;
 
     const merge = db.transaction(() => {
-      if (hasSyncLane(db)) {
-        const remap = emitRemapProject(
-          db,
-          { project: from, merged_into_project_is_null: true },
-          { merged_into_project: into }
-        );
-        result.mergedObservations = remap.observations;
-        result.mergedSummaries = remap.summaries;
-      } else {
-        // A database that has never had the sync lane has never synced, so
-        // there is no replica state to keep converged.
-        result.mergedObservations = db.prepare(
-          'UPDATE observations SET merged_into_project = ? WHERE project = ? AND merged_into_project IS NULL'
-        ).run(into, from).changes;
-        result.mergedSummaries = db.prepare(
-          'UPDATE session_summaries SET merged_into_project = ? WHERE project = ? AND merged_into_project IS NULL'
-        ).run(into, from).changes;
-      }
+      result.mergedObservations = db.prepare(
+        'UPDATE observations SET merged_into_project = ? WHERE project = ? AND merged_into_project IS NULL'
+      ).run(into, from).changes;
+      result.mergedSummaries = db.prepare(
+        'UPDATE session_summaries SET merged_into_project = ? WHERE project = ? AND merged_into_project IS NULL'
+      ).run(into, from).changes;
       for (const row of patchable('observations')) chromaTargets.push({ docType: 'observation', sqliteId: row.id });
       for (const row of patchable('session_summaries')) chromaTargets.push({ docType: 'session_summary', sqliteId: row.id });
       if (dryRun) throw new DryRunRollback();

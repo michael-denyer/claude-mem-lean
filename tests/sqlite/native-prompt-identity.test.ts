@@ -8,7 +8,7 @@ describe('native prompt receipts', () => {
   it('migrates an existing prompt table and survives an abrupt process exit after claiming a receipt', () => {
     const dir = mkdtempSync(join(tmpdir(), 'cmem-native-exit-'));
     const db = join(dir, 'db.sqlite');
-    let store = new SessionStore(db, { syncOpsEnabled: false });
+    let store = new SessionStore(db);
     try {
       const sid = store.createSDKSession('old-session', 'project', 'legacy', undefined, 'hermes');
       store.saveUserPrompt('old-session', 1, 'legacy', sid);
@@ -18,7 +18,7 @@ describe('native prompt receipts', () => {
       store.close();
       const module = new URL('../../src/services/sqlite/SessionStore.ts', import.meta.url).href;
       const code = `const { SessionStore } = await import(${JSON.stringify(module)});
-        const store = new SessionStore(process.env.CMEM_NATIVE_EXIT_DB, { syncOpsEnabled: false });
+        const store = new SessionStore(process.env.CMEM_NATIVE_EXIT_DB);
         const sid = store.createSDKSession('old-session', 'project', 'again', undefined, 'hermes');
         const receipt = store.saveNativeUserPrompt('old-session', sid, 'lost-response-turn', 'again');
         process.stdout.write(JSON.stringify(receipt)); process.exit(0);`;
@@ -27,7 +27,7 @@ describe('native prompt receipts', () => {
       });
       expect(child.exitCode).toBe(0);
       const receipt = JSON.parse(child.stdout.toString());
-      store = new SessionStore(db, { syncOpsEnabled: false });
+      store = new SessionStore(db);
       expect(store.saveNativeUserPrompt('old-session', sid, 'lost-response-turn', 'again')).toEqual({ ...receipt, duplicate: true });
       expect(store.getPromptNumberFromUserPrompts('old-session', sid)).toBe(2);
       const legacy = store.db.query('SELECT native_prompt_id, native_prompt_hash FROM user_prompts WHERE session_db_id = ? AND prompt_number = 1').get(sid);
@@ -38,7 +38,7 @@ describe('native prompt receipts', () => {
 
   it('keeps repeated real turns distinct and returns the same receipt after a lost response/restart', () => {
     const dir = mkdtempSync(join(tmpdir(), 'cmem-native-prompt-'));
-    let store = new SessionStore(join(dir, 'db.sqlite'), { syncOpsEnabled: false });
+    let store = new SessionStore(join(dir, 'db.sqlite'));
     try {
       const sid = store.createSDKSession('native-session', 'project', 'again', undefined, 'hermes');
       const first = store.saveNativeUserPrompt('native-session', sid, 'turn-1', 'again');
@@ -46,7 +46,7 @@ describe('native prompt receipts', () => {
       expect(second.id).not.toBe(first.id);
       expect(second.promptNumber).toBe(first.promptNumber + 1);
       store.close();
-      store = new SessionStore(join(dir, 'db.sqlite'), { syncOpsEnabled: false });
+      store = new SessionStore(join(dir, 'db.sqlite'));
       const retry = store.saveNativeUserPrompt('native-session', sid, 'turn-1', 'again');
       expect(retry).toEqual({ ...first, duplicate: true });
       expect(store.getPromptNumberFromUserPrompts('native-session', sid)).toBe(2);
@@ -61,7 +61,7 @@ describe('native prompt receipts', () => {
   });
 
   it('scopes native IDs by session/platform, keeps old rows/imports usable, and does not reopen on a retry', () => {
-    const store = new SessionStore(':memory:', { syncOpsEnabled: false });
+    const store = new SessionStore(':memory:');
     try {
       const a = store.createSDKSession('a', 'project', 'text', undefined, 'hermes');
       const b = store.createSDKSession('b', 'project', 'text', undefined, 'hermes');

@@ -21,7 +21,6 @@ const search = new SessionSearch(store.db);
 const indexed: Array<{ id: number; title: string | null; narrative: string | null }> = [];
 const dbManager = {
   getSessionStore: () => store,
-  getCloudSync: () => null,
   getChromaSync: () => ({
     syncObservation: async (id: number, _session: string, _project: string, observation: { title: string | null; narrative: string | null }) => {
       indexed.push({ id, title: observation.title, narrative: observation.narrative });

@@ -32,7 +32,6 @@ beforeEach(async () => {
       return {};
     },
     getChromaSync: () => null,
-    getCloudSync: () => null,
   };
   const app = express();
   app.use(express.json());

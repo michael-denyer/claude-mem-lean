@@ -30,9 +30,9 @@ async function serve(store: () => SessionStore, search = false) {
 }
 
 it('preserves native receipts through the real export CLI, HTTP import and a restart', async () => {
-  const source = new SessionStore(':memory:', { syncOpsEnabled: false });
+  const source = new SessionStore(':memory:');
   const dir = mkdtempSync(join(tmpdir(), 'cmem-native-import-'));
-  let destination = new SessionStore(join(dir, 'restored.sqlite'), { syncOpsEnabled: false });
+  let destination = new SessionStore(join(dir, 'restored.sqlite'));
   const sourceHttp = await serve(() => source, true);
   const destinationHttp = await serve(() => destination);
   try {
@@ -60,7 +60,7 @@ it('preserves native receipts through the real export CLI, HTTP import and a res
     expect(result.stats.promptsImported).toBe(1);
     expect(result.stats.promptsRejected).toBe(0);
     destination.close();
-    destination = new SessionStore(join(dir, 'restored.sqlite'), { syncOpsEnabled: false });
+    destination = new SessionStore(join(dir, 'restored.sqlite'));
     const restoredSid = destination.createSDKSession('imported-native', 'project', 'again', undefined, 'hermes');
     const restored = destination.saveNativeUserPrompt('imported-native', restoredSid, 'host-turn-one', 'again');
     expect(restored.duplicate).toBe(true);
@@ -75,7 +75,7 @@ it('preserves native receipts through the real export CLI, HTTP import and a res
 });
 
 it('still imports legacy prompt rows without either native receipt column', async () => {
-  const store = new SessionStore(':memory:', { syncOpsEnabled: false });
+  const store = new SessionStore(':memory:');
   const http = await serve(() => store);
   try {
     store.createSDKSession('legacy-import', 'project', 'old prompt');

@@ -41,7 +41,6 @@ const SECRET_SETTING_KEYS = new Set([
   'CLAUDE_MEM_OPENAI_COMPAT_API_KEY',
   'CLAUDE_MEM_OPENAI_COMPAT_API_KEYS',
   'CLAUDE_MEM_CHROMA_API_KEY',
-  'CLAUDE_MEM_CLOUD_SYNC_TOKEN',
   'CLAUDE_MEM_TELEGRAM_BOT_TOKEN',
   'CLAUDE_MEM_TELEGRAM_WRAPUP_ROUTES',
   'CLAUDE_MEM_SERVER_API_KEY',
@@ -231,7 +230,7 @@ export class SettingsRoutes extends BaseRouteHandler {
     // of these. Secrets stay off this list except the two provider keys the
     // viewer Settings UI must save (Gemini / OpenRouter); those are masked on
     // GET and an unchanged mask is skipped on POST. Observation TV / Chroma /
-    // Telegram / CloudSync / Redis tokens remain file/env only.
+    // Telegram / Redis tokens remain file/env only.
     //
     // Executable spawn paths (CLAUDE_CODE_PATH, CLAUDE_MEM_CODEX_PATH,
     // CLAUDE_MEM_CHROMA_UVX_PATH) are also
@@ -532,20 +531,6 @@ export class SettingsRoutes extends BaseRouteHandler {
     // already reads an unknown preset as `custom`.
     if (settings.CLAUDE_MEM_OPENAI_COMPAT_BASE_URL && !isHttpUrl(settings.CLAUDE_MEM_OPENAI_COMPAT_BASE_URL)) {
       return { valid: false, error: 'CLAUDE_MEM_OPENAI_COMPAT_BASE_URL must be an HTTP(S) URL' };
-    }
-
-    if (settings.CLAUDE_MEM_CLOUD_SYNC_CONTENT_BATCH_SIZE) {
-      const batch = parseInt(settings.CLAUDE_MEM_CLOUD_SYNC_CONTENT_BATCH_SIZE, 10);
-      if (isNaN(batch) || batch < 1 || batch > 500) {
-        return { valid: false, error: 'CLAUDE_MEM_CLOUD_SYNC_CONTENT_BATCH_SIZE must be between 1 and 500' };
-      }
-    }
-
-    if (settings.CLAUDE_MEM_CLOUD_SYNC_REQUEST_TIMEOUT_MS) {
-      const timeoutMs = parseInt(settings.CLAUDE_MEM_CLOUD_SYNC_REQUEST_TIMEOUT_MS, 10);
-      if (isNaN(timeoutMs) || timeoutMs < 5000 || timeoutMs > 180000) {
-        return { valid: false, error: 'CLAUDE_MEM_CLOUD_SYNC_REQUEST_TIMEOUT_MS must be between 5000 and 180000' };
-      }
     }
 
     return { valid: true };

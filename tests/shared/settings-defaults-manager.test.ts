@@ -334,20 +334,16 @@ describe('SettingsDefaultsManager', () => {
       });
 
       // The old viewer wrote claude-mem's keys at the ROOT of a wrapped document,
-      // secrets as `****` masks. Reading those copies turned sync off (empty
-      // CLOUD_SYNC_*) and handed providers a masked key.
+      // secrets as `****` masks. Reading those copies blanked other keys and
+      // handed providers a masked key.
       it('reads the real env values when an old viewer left masked root copies beside a wrapped document', () => {
         const wrapped = {
           theme: 'dark',
           CLAUDE_MEM_OPENROUTER_API_KEY: '****',
-          CLAUDE_MEM_CLOUD_SYNC_TOKEN: '',
-          CLAUDE_MEM_CLOUD_SYNC_USER_ID: '',
-          CLAUDE_MEM_CLOUD_SYNC_HUB_URL: '',
+          CLAUDE_MEM_GEMINI_API_KEY: '',
           env: {
             CLAUDE_MEM_OPENROUTER_API_KEY: 'sk-or-v1-real',
-            CLAUDE_MEM_CLOUD_SYNC_TOKEN: 'sync-token',
-            CLAUDE_MEM_CLOUD_SYNC_USER_ID: 'user-1',
-            CLAUDE_MEM_CLOUD_SYNC_HUB_URL: 'https://sync.example',
+            CLAUDE_MEM_GEMINI_API_KEY: 'gemini-real',
           },
         };
         writeFileSync(settingsPath, JSON.stringify(wrapped));
@@ -355,9 +351,7 @@ describe('SettingsDefaultsManager', () => {
         const result = SettingsDefaultsManager.loadFromFile(settingsPath, false);
 
         expect(result.CLAUDE_MEM_OPENROUTER_API_KEY).toBe('sk-or-v1-real');
-        expect(result.CLAUDE_MEM_CLOUD_SYNC_TOKEN).toBe('sync-token');
-        expect(result.CLAUDE_MEM_CLOUD_SYNC_USER_ID).toBe('user-1');
-        expect(result.CLAUDE_MEM_CLOUD_SYNC_HUB_URL).toBe('https://sync.example');
+        expect(result.CLAUDE_MEM_GEMINI_API_KEY).toBe('gemini-real');
       });
 
       it('flattens an old viewer\'s wrapped document with no real peers, keeping the env values and dropping the stale copies', () => {
@@ -504,51 +498,6 @@ describe('SettingsDefaultsManager', () => {
         const second = SettingsDefaultsManager.loadFromFile(settingsPath);
 
         expect(second.CLAUDE_MEM_TELEGRAM_TRIGGER_TYPES).toBe(first.CLAUDE_MEM_TELEGRAM_TRIGGER_TYPES);
-      });
-    });
-
-    describe('legacy cloud sync hub URL migration', () => {
-      it('rewrites the pinned workers.dev host to sync.cmem.ai and persists', () => {
-        writeFileSync(settingsPath, JSON.stringify({
-          CLAUDE_MEM_CLOUD_SYNC_HUB_URL: 'https://sync-hub.black-pond-afbb.workers.dev',
-          CLAUDE_MEM_CLOUD_SYNC_TOKEN: 'tok',
-        }));
-
-        const result = SettingsDefaultsManager.loadFromFile(settingsPath);
-
-        expect(result.CLAUDE_MEM_CLOUD_SYNC_HUB_URL).toBe('https://sync.cmem.ai');
-        const parsed = JSON.parse(readFileSync(settingsPath, 'utf-8'));
-        expect(parsed.CLAUDE_MEM_CLOUD_SYNC_HUB_URL).toBe('https://sync.cmem.ai');
-        expect(parsed.CLAUDE_MEM_CLOUD_SYNC_TOKEN).toBe('tok');
-      });
-
-      it('rewrites even when the stored URL has a trailing slash or http scheme', () => {
-        writeFileSync(settingsPath, JSON.stringify({
-          CLAUDE_MEM_CLOUD_SYNC_HUB_URL: 'http://sync-hub.black-pond-afbb.workers.dev/',
-        }));
-
-        const result = SettingsDefaultsManager.loadFromFile(settingsPath);
-        expect(result.CLAUDE_MEM_CLOUD_SYNC_HUB_URL).toBe('https://sync.cmem.ai');
-      });
-
-      it('rewrites the direct production Supabase function URL to sync.cmem.ai', () => {
-        writeFileSync(settingsPath, JSON.stringify({
-          CLAUDE_MEM_CLOUD_SYNC_HUB_URL: 'https://ziczmqtpmaxbornfghye.supabase.co/functions/v1/cmem-sync',
-        }));
-
-        const result = SettingsDefaultsManager.loadFromFile(settingsPath);
-        expect(result.CLAUDE_MEM_CLOUD_SYNC_HUB_URL).toBe('https://sync.cmem.ai');
-      });
-
-      it('leaves a different hub host untouched', () => {
-        writeFileSync(settingsPath, JSON.stringify({
-          CLAUDE_MEM_CLOUD_SYNC_HUB_URL: 'https://sync.example.test',
-        }));
-
-        const result = SettingsDefaultsManager.loadFromFile(settingsPath);
-        expect(result.CLAUDE_MEM_CLOUD_SYNC_HUB_URL).toBe('https://sync.example.test');
-        const parsed = JSON.parse(readFileSync(settingsPath, 'utf-8'));
-        expect(parsed.CLAUDE_MEM_CLOUD_SYNC_HUB_URL).toBe('https://sync.example.test');
       });
     });
 
@@ -1032,12 +981,6 @@ describe('SettingsDefaultsManager', () => {
     // applyEnvOverrides need no key-specific code).
     it('CLAUDE_MEM_CLAUDE_CONFIG_DIR defaults to empty string', () => {
       expect(SettingsDefaultsManager.getAllDefaults().CLAUDE_MEM_CLAUDE_CONFIG_DIR).toBe('');
-    });
-
-    it('cloud sync content flush knobs default to 40 ops / 90s', () => {
-      const defaults = SettingsDefaultsManager.getAllDefaults();
-      expect(defaults.CLAUDE_MEM_CLOUD_SYNC_CONTENT_BATCH_SIZE).toBe('40');
-      expect(defaults.CLAUDE_MEM_CLOUD_SYNC_REQUEST_TIMEOUT_MS).toBe('90000');
     });
   });
 

@@ -23,10 +23,6 @@ const ACCOUNT_SETTINGS = {
   CLAUDE_MEM_OPENROUTER_BASE_URL: 'https://cmem.ai/api/inference/v1',
   CLAUDE_MEM_OPENROUTER_API_KEY: 'cm_pro_0123456789abcdef01234567',
   CLAUDE_MEM_OPENROUTER_MODEL: 'cmem-observer',
-  CLAUDE_MEM_CLOUD_SYNC_TOKEN: 'sync-token',
-  CLAUDE_MEM_CLOUD_SYNC_USER_ID: 'user-1',
-  CLAUDE_MEM_CLOUD_SYNC_HUB_URL: 'https://hub.example.test',
-  CLAUDE_MEM_CLOUD_SYNC_DEVICE_ID: 'device-1',
 };
 
 const ENV_KEYS = [

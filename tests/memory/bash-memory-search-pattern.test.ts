@@ -74,7 +74,7 @@ describe('Bash memory lookup uses the native search pattern', () => {
     const notes = path.join(root, 'notes'); mkdirSync(notes);
     const file = path.join(notes, 'feedback.md');
     writeFileSync(file, 'timeout deadline policy\nretry backoff policy\n');
-    const store = new SessionStore(path.join(root, 'owned.db'), { syncOpsEnabled: false });
+    const store = new SessionStore(path.join(root, 'owned.db'));
     const fixtures = [
       { project: 'pattern-project', title: 'timeout deadline policy', narrative: 'Increase deadline thirty seconds' },
       { project: 'pattern-project', title: 'retry backoff policy', narrative: 'Use exponential backoff' },

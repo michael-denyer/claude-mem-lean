@@ -22,12 +22,6 @@
  * so the hook never serves deleted memory while the re-render is pending. A
  * render that was already in flight when a removal landed is discarded (and
  * re-queued) instead of writing pre-removal content back.
- *
- * Local-first: the files are servable with or without cloud sync. The local db
- * is the source of truth; sync applies other devices' ops in the background and
- * every applied op invalidates the files. setServable(false) removes every file
- * and none is written (the hook takes the live path); setServable(true)
- * re-renders all.
  */
 import { existsSync, readFileSync, unlinkSync } from 'fs';
 import { join } from 'path';
@@ -62,8 +56,6 @@ export interface ContextCacheServiceOptions {
   expandProjectReadKeys: (projects: string[]) => string[];
   debounceMs?: number;
   maxVariants?: number;
-  /** False keeps the files unservable until setServable(true). Default true. */
-  initiallyServable?: boolean;
   now?: () => number;
 }
 
@@ -88,7 +80,6 @@ export class ContextCacheService {
   private stopped = false;
   /** Bumped by every 'removal' invalidation; a render that saw it change mid-flight is not persisted. */
   private removalGeneration = 0;
-  private servable: boolean;
   private readonly debounceMs: number;
   private readonly maxVariants: number;
   private readonly now: () => number;
@@ -97,7 +88,6 @@ export class ContextCacheService {
     this.debounceMs = options.debounceMs ?? CONTEXT_CACHE_RENDER_DEBOUNCE_MS;
     this.maxVariants = options.maxVariants ?? CONTEXT_CACHE_MAX_VARIANTS;
     this.now = options.now ?? Date.now;
-    this.servable = options.initiallyServable ?? true;
   }
 
   /** Load the known variants, drop orphaned files, listen for writes, and re-render everything once. */
@@ -110,8 +100,6 @@ export class ContextCacheService {
       });
     }
     this.removeOrphanedFiles();
-    // Sync on but Realtime not joined yet: a previous worker's files may predate remote ops.
-    if (!this.servable) for (const variant of this.variants.values()) this.removeFile(variant.keys);
     this.unsubscribe = onContextInvalidation(invalidation => this.handleInvalidation(invalidation));
     // The database may have changed while no worker was running.
     for (const variantId of this.variants.keys()) this.pendingVariantIds.add(variantId);
@@ -193,26 +181,6 @@ export class ContextCacheService {
       this.enqueuePendingRender();
     }
     await this.renderChain;
-  }
-
-  /**
-   * Cloud sync's Realtime channel joined and caught up (true — SyncClient's
-   * onRealtimeCaughtUpChange(true)), or dropped or fell behind an announced
-   * head (false). Dropping removes every cached file now; catching up
-   * re-renders every known variant.
-   */
-  setServable(servable: boolean): void {
-    if (this.servable === servable) return;
-    this.servable = servable;
-    logger.info('CONTEXT_CACHE', servable
-      ? 'Sync live updates joined; serving precomputed SessionStart context again'
-      : 'Sync live updates down; SessionStart takes the live path (pulls first) until they rejoin', { knownVariants: this.variants.size });
-    if (!servable) {
-      for (const variant of this.variants.values()) this.removeFile(variant.keys);
-      return;
-    }
-    for (const variantId of this.variants.keys()) this.pendingVariantIds.add(variantId);
-    if (this.pendingVariantIds.size > 0) this.scheduleRender();
   }
 
   knownVariantCount(): number {
@@ -300,7 +268,7 @@ export class ContextCacheService {
   }
 
   private persistRender(keys: ContextCacheKeys, render: ContextVariantRender, renderedAtEpochMs: number): void {
-    if (!render.cacheable || !this.servable) {
+    if (!render.cacheable) {
       this.removeFile(keys);
       return;
     }

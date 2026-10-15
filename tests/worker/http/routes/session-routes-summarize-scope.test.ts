@@ -37,7 +37,7 @@ beforeEach(async () => {
 
   const routes = new SessionRoutes(
     { getSession: () => undefined, queueSummarize } as any,
-    { getSessionStore: () => store, getCloudSync: () => null } as any,
+    { getSessionStore: () => store } as any,
     {} as any,
     {} as any,
     {} as any,

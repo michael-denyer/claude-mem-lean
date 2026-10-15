@@ -6,7 +6,7 @@ import { DataRoutes } from '../../../../src/services/worker/http/routes/DataRout
 
 for (const project of ['acme/repo', 'ACME/REPO']) {
   it(`keeps the Sessions catalog aligned with the feed for project ${project}`, async () => {
-    const store = new SessionStore(':memory:', { syncOpsEnabled: false });
+    const store = new SessionStore(':memory:');
     const facade = { getSessionStore: () => store } as any;
     const app = express();
     new DataRoutes(new PaginationHelper(facade), facade, {} as any, {} as any, {} as any, Date.now()).setupRoutes(app);

@@ -1162,13 +1162,13 @@ export async function promptProvider(
       ANTHROPIC_BASE_URL: '',
       ANTHROPIC_AUTH_TOKEN: '',
     });
-    log.info('Disabled cloud sync and saved local Anthropic Max configuration.');
+    log.info('Saved local Anthropic Max configuration.');
     log.info('Configured claude-mem to use your logged-in Claude SDK account.');
   };
 
   // A provider reused from settings on a non-interactive run is already fully
   // configured. Re-running the claude branch would call useSubscriptionAuth(),
-  // which blanks cloud-sync and the Pro memory key — a persisted Pro config
+  // which blanks the Pro memory key — a persisted Pro config
   // must survive a non-TTY `npx claude-mem update` untouched.
   if (options.providerSource === 'persisted' && options.provider) {
     return options.provider;
@@ -1650,7 +1650,6 @@ export async function startInstallerOAuthPairing(
 export interface TrialReadyResult {
   userId: string;
   setupToken: string;
-  hubUrl: string;
   memoryKey: string;
   memoryBaseUrl: string;
   memoryModel: string;
@@ -1658,16 +1657,8 @@ export interface TrialReadyResult {
   trialEndsAt: string | null;
 }
 
-export function buildTrialReadySettings(
-  result: TrialReadyResult,
-  deviceName: string = hostname(),
-): Record<string, string> {
+export function buildTrialReadySettings(result: TrialReadyResult): Record<string, string> {
   return {
-    CLAUDE_MEM_CLOUD_SYNC_TOKEN: result.setupToken,
-    CLAUDE_MEM_CLOUD_SYNC_USER_ID: result.userId,
-    CLAUDE_MEM_CLOUD_SYNC_HUB_URL: result.hubUrl,
-    CLAUDE_MEM_CLOUD_SYNC_DEVICE_ID: '',
-    CLAUDE_MEM_CLOUD_SYNC_DEVICE_NAME: deviceName,
     CLAUDE_MEM_PRO_TRIAL_STATE: 'active',
     CLAUDE_MEM_PRO_TRIAL_ENDS_AT: result.trialEndsAt ?? '',
     CLAUDE_MEM_PRO_PLAN: result.plan,
@@ -1684,7 +1675,6 @@ export function parseTrialReadyBody(body: unknown): TrialReadyResult | null {
     status?: unknown;
     user_id?: unknown;
     setup_token?: unknown;
-    hub_url?: unknown;
     memory_key?: unknown;
     memory_base_url?: unknown;
     memory_model?: unknown;
@@ -1693,13 +1683,11 @@ export function parseTrialReadyBody(body: unknown): TrialReadyResult | null {
   };
   const userId = nonEmptyTrimmedString(b.user_id);
   const setupToken = nonEmptyTrimmedString(b.setup_token);
-  const hubUrl = nonEmptyTrimmedString(b.hub_url);
-  if (b.status !== 'ready' || !userId || !setupToken || !hubUrl) return null;
+  if (b.status !== 'ready' || !userId || !setupToken) return null;
 
   return {
     userId,
     setupToken,
-    hubUrl,
     memoryKey: nonEmptyTrimmedString(b.memory_key) ?? setupToken,
     memoryBaseUrl: nonEmptyTrimmedString(b.memory_base_url) ?? CMEM_PRO_BASE_URL,
     memoryModel: nonEmptyTrimmedString(b.memory_model) ?? CMEM_PRO_MODEL,
@@ -1972,7 +1960,7 @@ export async function offerDeferredLogin(options: InstallOptions, version: strin
   // Telemetry first so that, in CLAUDE_MEM_TELEMETRY_DEBUG=1 mode, its stderr
   // line cannot land after the relay instruction an agent reads last.
   await captureCliEvent('installer_oauth_deferred', { version, interactive: false });
-  log.info('Optional: sign in to claude-mem to enable cloud sync.');
+  log.info('Optional: sign in to claude-mem to use CMEM Pro.');
   log.info(`Sign-in link: ${pairing.authorizationUrl}`);
   log.info('AGENT: show this link to the user so they can finish signing in. Do not open it yourself; the install is already complete.');
 }
@@ -2326,7 +2314,7 @@ export function validateNonInteractiveProvider(
     //
     // A persisted provider wins: `npx claude-mem update` calls this path with no
     // options, and defaulting an existing Pro (openrouter) config to claude would
-    // run useSubscriptionAuth() and wipe cloud sync. A persisted personal
+    // run useSubscriptionAuth() and wipe the Pro setup. A persisted personal
     // provider still needs a non-empty key, or the install would report success
     // with a worker that cannot talk to its provider. Unlike the explicit-flag
     // check below, a cmem gateway URL is accepted here: a persisted Pro config
@@ -2769,11 +2757,7 @@ async function runInstallCommandInner(options: InstallOptions, summary: InstallS
     log.info(`Skipping claude-mem login: ${skipReason}`);
   }
   const selectedProvider = await promptProvider(options, oauthPairing, version);
-  const cloudSyncConfigured = [
-    getSetting('CLAUDE_MEM_CLOUD_SYNC_TOKEN'),
-    getSetting('CLAUDE_MEM_CLOUD_SYNC_USER_ID'),
-    getSetting('CLAUDE_MEM_CLOUD_SYNC_HUB_URL'),
-  ].every((value) => typeof value === 'string' && value.trim().length > 0);
+  const cmemGatewayConfigured = isCmemGatewayUrl(String(getSetting('CLAUDE_MEM_OPENROUTER_BASE_URL') ?? ''));
   if (selectedProvider === 'claude') {
     await promptClaudeModel(options);
   }
@@ -2845,7 +2829,6 @@ async function runInstallCommandInner(options: InstallOptions, summary: InstallS
     `IDEs:        ${styleText('cyan', selectedIDEs.join(', '))}`,
   ];
   summaryLines.push(`Account:     ${styleText('cyan', accountStatus)}`);
-  summaryLines.push(`Cloud sync:  ${styleText('cyan', cloudSyncConfigured ? 'ON (CMEM Pro)' : 'OFF (local)')}`);
   if (autoMemoryStatus === 'disabled') {
     summaryLines.push(`Auto-memory: ${styleText('cyan', 'disabled')} (CLAUDE_CODE_DISABLE_AUTO_MEMORY=1)`);
   } else if (autoMemoryStatus === 'already-disabled') {
@@ -2906,28 +2889,6 @@ async function runInstallCommandInner(options: InstallOptions, summary: InstallS
     } catch {
       healthSpinner?.stop(`Worker not yet responding on port ${workerPort} (still starting)`);
     }
-
-    // A sign-in just wrote cloud-sync settings the worker booted with, so
-    // one cheap read of /api/sync/status confirms sync is really configured.
-    // Purely informational and fail-soft — a warming worker legitimately
-    // can't answer yet, and the state is always visible via the cloud-sync skill.
-    if (cloudSyncConfigured && workerReady) {
-      try {
-        const syncResponse = await fetch(`http://${workerUrlHost}:${actualPort}/api/sync/status`, {
-          signal: AbortSignal.timeout(3000),
-        });
-        if (syncResponse.ok) {
-          const sync = await syncResponse.json() as { configured?: boolean };
-          if (sync && sync.configured === false) {
-            log.warn('Cloud sync: worker has not picked up the sync settings yet — it will on its next restart.');
-          } else {
-            log.success('Cloud sync: configured — the worker is reporting sync status.');
-          }
-        }
-      } catch {
-        // [ANTI-PATTERN IGNORED]: this read-through is purely informational; a worker still warming up legitimately can't answer, and sync state stays visible via the cloud-sync skill.
-      }
-    }
   }
 
   const finalWorkerState = workerStartResult as WorkerStartResult;
@@ -2963,8 +2924,8 @@ async function runInstallCommandInner(options: InstallOptions, summary: InstallS
     `To watch them live, ${firstSuccessOpener}.`,
     ``,
     `Memory injection starts on your second session in a project.`,
-    cloudSyncConfigured
-      ? 'Memory syncs across your signed-in CMEM Pro agents and devices.'
+    cmemGatewayConfigured
+      ? `Memory stays in ${styleText('cyan', '~/.claude-mem')} on this machine. Observations are compressed through the cmem.ai gateway.`
       : `Everything stays in ${styleText('cyan', '~/.claude-mem')} on this machine. cmem.ai is contacted once, at signup, to create the sign-in link, with a numbers-only usage summary (observation counts and token totals, no prompts, paths, or project names); nothing else is sent to cmem.ai (telemetry is separate: npx claude-mem telemetry).`,
     ``,
     `${styleText('dim', `Optional: ${'/learn-codebase'} ingests a whole repo up front (~5 min)   ·   How it works: /how-it-works`)}`,

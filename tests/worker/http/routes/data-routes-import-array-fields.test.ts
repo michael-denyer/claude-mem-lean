@@ -64,7 +64,7 @@ describe('DataRoutes import with array-valued fields (cloud shape)', () => {
     const json = mock(() => {});
     const status = mock(() => ({ json }));
 
-    // Mirrors the CloudSync `toCloud` shape, where parseJson turns the locally
+    // Mirrors the export shape, where parseJson turns the locally
     // JSON-string columns back into real arrays before they cross /api/import.
     const importOnce = () => handler({
       path: '/api/import',

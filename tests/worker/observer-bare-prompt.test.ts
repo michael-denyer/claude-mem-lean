@@ -146,7 +146,6 @@ describe('a bare user prompt does not cost an observer call', () => {
         syncObservation: mock(() => Promise.resolve()),
         syncSummary: mock(() => Promise.resolve()),
       }),
-      getCloudSync: () => null,
     } as unknown as DatabaseManager;
   });
 
