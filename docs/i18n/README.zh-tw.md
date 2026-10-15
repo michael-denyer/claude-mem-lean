@@ -162,16 +162,6 @@ npx claude-mem install --ide antigravity
 
 > **注意：** Claude-Mem 也發布於 npm，但 `npm install -g claude-mem` 僅安裝 **SDK/函式庫**——它不會註冊外掛掛鉤或設定 Worker 服務。請務必透過 `npx claude-mem install` 或上述 `/plugin` 指令安裝。
 
-### 🦞 OpenClaw Gateway
-
-只需一個指令，即可在 [OpenClaw](https://openclaw.ai) 閘道上安裝 claude-mem 作為持久記憶外掛：
-
-```bash
-curl -fsSL https://install.cmem.ai/openclaw.sh | bash
-```
-
-安裝程式會處理相依性、外掛設定、AI 提供者設定、Worker 啟動，以及選用的即時觀察推播至 Telegram、Discord、Slack 等平台。詳情請參閱 [OpenClaw 整合指南](https://docs.claude-mem.ai/openclaw-integration)。
-
 **主要功能：**
 
 - 🧠 **持久記憶** - 脈絡跨工作階段保留

@@ -162,16 +162,6 @@ Reinicie o Claude Code. O contexto de sessões anteriores aparecerá automaticam
 
 > **Observação:** o Claude-Mem também é publicado no npm, mas `npm install -g claude-mem` instala **apenas o SDK/biblioteca** — ele não registra os hooks do plugin nem configura o serviço worker. Sempre instale via `npx claude-mem install` ou pelos comandos `/plugin` acima.
 
-### 🦞 OpenClaw Gateway
-
-Instale o claude-mem como um plugin de memória persistente em gateways [OpenClaw](https://openclaw.ai) com um único comando:
-
-```bash
-curl -fsSL https://install.cmem.ai/openclaw.sh | bash
-```
-
-O instalador cuida das dependências, da configuração do plugin, da configuração do provedor de IA, da inicialização do worker e de feeds opcionais de observação em tempo real para Telegram, Discord, Slack e outros. Consulte o [Guia de Integração com o OpenClaw](https://docs.claude-mem.ai/openclaw-integration) para mais detalhes.
-
 **Principais Recursos:**
 
 - 🧠 **Memória Persistente** - O contexto sobrevive entre sessões

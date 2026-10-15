@@ -162,16 +162,6 @@ Claude Codeを再起動します。以前のセッションからのコンテキ
 
 > **注:** Claude-MemはnpmにもPublishされていますが、`npm install -g claude-mem`は**SDK/ライブラリのみ**をインストールします — プラグインフックの登録やワーカーサービスのセットアップは行われません。必ず上記の`npx claude-mem install`または`/plugin`コマンドを使用してインストールしてください。
 
-### 🦞 OpenClawゲートウェイ
-
-[OpenClaw](https://openclaw.ai)ゲートウェイに、単一のコマンドで永続メモリプラグインとしてclaude-memをインストールできます:
-
-```bash
-curl -fsSL https://install.cmem.ai/openclaw.sh | bash
-```
-
-インストーラーは、依存関係、プラグインセットアップ、AIプロバイダー設定、ワーカー起動、そしてTelegram、Discord、Slackなどへのオプションのリアルタイム観察フィードを処理します。詳細は[OpenClaw統合ガイド](https://docs.claude-mem.ai/openclaw-integration)を参照してください。
-
 **主な機能:**
 
 - 🧠 **永続的メモリ** - セッション間でコンテキストが保持される

@@ -162,16 +162,6 @@ Genstart Claude Code. Kontekst fra tidligere sessioner vil automatisk vises i ny
 
 > **Bemærk:** Claude-Mem er også udgivet på npm, men `npm install -g claude-mem` installerer kun **SDK'et/biblioteket** — det registrerer ikke plugin-hooks eller opsætter worker-servicen. Installer altid via `npx claude-mem install` eller `/plugin`-kommandoerne ovenfor.
 
-### 🦞 OpenClaw Gateway
-
-Installer claude-mem som et vedvarende hukommelsesplugin på [OpenClaw](https://openclaw.ai)-gateways med en enkelt kommando:
-
-```bash
-curl -fsSL https://install.cmem.ai/openclaw.sh | bash
-```
-
-Installationsprogrammet håndterer afhængigheder, plugin-opsætning, konfiguration af AI-udbyder, worker-opstart og valgfrie realtidsobservationsfeeds til Telegram, Discord, Slack og mere. Se [OpenClaw-integrationsguiden](https://docs.claude-mem.ai/openclaw-integration) for detaljer.
-
 **Nøglefunktioner:**
 
 - 🧠 **Vedvarende Hukommelse** - Kontekst overlever på tværs af sessioner

@@ -162,16 +162,6 @@ npx claude-mem install --ide antigravity
 
 > **Σημείωση:** Το Claude-Mem δημοσιεύεται επίσης στο npm, αλλά το `npm install -g claude-mem` εγκαθιστά **μόνο το SDK/library** — δεν καταχωρεί τα plugin hooks ούτε ρυθμίζει την υπηρεσία worker. Πάντα να εγκαθιστάτε μέσω του `npx claude-mem install` ή των παραπάνω εντολών `/plugin`.
 
-### 🦞 OpenClaw Gateway
-
-Εγκαταστήστε το claude-mem ως plugin μόνιμης μνήμης σε gateways [OpenClaw](https://openclaw.ai) με μία μόνο εντολή:
-
-```bash
-curl -fsSL https://install.cmem.ai/openclaw.sh | bash
-```
-
-Ο εγκαταστάτης διαχειρίζεται τις εξαρτήσεις, τη ρύθμιση του plugin, τη διαμόρφωση του πάροχου AI, την εκκίνηση του worker, καθώς και προαιρετικές ροές παρατηρήσεων σε πραγματικό χρόνο προς Telegram, Discord, Slack, και άλλα. Δείτε τον [Οδηγό Ενσωμάτωσης OpenClaw](https://docs.claude-mem.ai/openclaw-integration) για λεπτομέρειες.
-
 **Βασικά Χαρακτηριστικά:**
 
 - 🧠 **Μόνιμη Μνήμη** - Το πλαίσιο διατηρείται μεταξύ συνεδριών

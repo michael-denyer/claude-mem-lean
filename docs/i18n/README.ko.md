@@ -162,16 +162,6 @@ Claude Code를 재시작하세요. 이전 세션의 컨텍스트가 자동으로
 
 > **참고:** Claude-Mem은 npm에도 게시되어 있지만, `npm install -g claude-mem`은 **SDK/라이브러리만** 설치합니다 — 플러그인 후크를 등록하거나 워커 서비스를 설정하지 않습니다. 항상 `npx claude-mem install` 또는 위의 `/plugin` 명령을 통해 설치하세요.
 
-### 🦞 OpenClaw 게이트웨이
-
-한 줄 명령으로 [OpenClaw](https://openclaw.ai) 게이트웨이에 claude-mem을 지속적인 메모리 플러그인으로 설치하세요:
-
-```bash
-curl -fsSL https://install.cmem.ai/openclaw.sh | bash
-```
-
-설치 프로그램은 종속성, 플러그인 설정, AI 제공업체 구성, 워커 시작, 그리고 Telegram, Discord, Slack 등으로의 선택적 실시간 관찰 피드를 처리합니다. 자세한 내용은 [OpenClaw 통합 가이드](https://docs.claude-mem.ai/openclaw-integration)를 참조하세요.
-
 **주요 기능:**
 
 - 🧠 **지속적인 메모리** - 세션 간 컨텍스트 유지

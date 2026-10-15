@@ -162,16 +162,6 @@ Claude Code को पुनः आरंभ करें। पिछले स
 
 > **नोट:** Claude-Mem npm पर भी प्रकाशित है, लेकिन `npm install -g claude-mem` केवल **SDK/लाइब्रेरी** इंस्टॉल करता है — यह प्लगइन hooks को रजिस्टर नहीं करता और न ही worker सेवा सेट अप करता है। हमेशा `npx claude-mem install` या ऊपर दिए गए `/plugin` कमांड्स के माध्यम से ही इंस्टॉल करें।
 
-### 🦞 OpenClaw Gateway
-
-एक ही कमांड से [OpenClaw](https://openclaw.ai) gateways पर claude-mem को स्थायी मेमोरी प्लगइन के रूप में इंस्टॉल करें:
-
-```bash
-curl -fsSL https://install.cmem.ai/openclaw.sh | bash
-```
-
-इंस्टॉलर डिपेंडेंसीज़, प्लगइन सेटअप, AI प्रोवाइडर कॉन्फ़िगरेशन, worker स्टार्टअप, और Telegram, Discord, Slack, और अन्य प्लेटफ़ॉर्म्स पर वैकल्पिक रीयल-टाइम अवलोकन फ़ीड को संभालता है। विवरण के लिए [OpenClaw एकीकरण गाइड](https://docs.claude-mem.ai/openclaw-integration) देखें।
-
 **मुख्य विशेषताएं:**
 
 - 🧠 **स्थायी मेमोरी** - संदर्भ सत्रों में बना रहता है

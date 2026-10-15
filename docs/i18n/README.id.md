@@ -162,16 +162,6 @@ Restart Claude Code. Konteks dari sesi sebelumnya akan secara otomatis muncul di
 
 > **Catatan:** Claude-Mem juga dipublikasikan di npm, tetapi `npm install -g claude-mem` hanya menginstal **SDK/library saja** — ini tidak mendaftarkan plugin hooks atau menyiapkan layanan worker. Selalu instal melalui `npx claude-mem install` atau perintah `/plugin` di atas.
 
-### 🦞 OpenClaw Gateway
-
-Instal claude-mem sebagai plugin memori persisten pada gateway [OpenClaw](https://openclaw.ai) dengan satu perintah:
-
-```bash
-curl -fsSL https://install.cmem.ai/openclaw.sh | bash
-```
-
-Installer ini menangani dependensi, pengaturan plugin, konfigurasi penyedia AI, startup worker, dan feed observasi real-time opsional ke Telegram, Discord, Slack, dan lainnya. Lihat [Panduan Integrasi OpenClaw](https://docs.claude-mem.ai/openclaw-integration) untuk detail.
-
 **Fitur Utama:**
 
 - 🧠 **Memori Persisten** - Konteks bertahan di seluruh sesi

@@ -162,16 +162,6 @@ Claude Code'u yeniden başlatın. Önceki oturumlardaki bağlam otomatik olarak 
 
 > **Not:** Claude-Mem npm'de de yayımlanmıştır, ancak `npm install -g claude-mem` yalnızca **SDK/kütüphaneyi** kurar — plugin hook'larını kaydetmez veya worker servisini kurmaz. Her zaman `npx claude-mem install` veya yukarıdaki `/plugin` komutlarıyla kurun.
 
-### 🦞 OpenClaw Gateway
-
-Claude-mem'i tek bir komutla [OpenClaw](https://openclaw.ai) gateway'lerine kalıcı bellek eklentisi olarak kurun:
-
-```bash
-curl -fsSL https://install.cmem.ai/openclaw.sh | bash
-```
-
-Kurulum programı bağımlılıkları, plugin kurulumunu, AI sağlayıcı yapılandırmasını, worker başlatmayı ve Telegram, Discord, Slack ve daha fazlasına isteğe bağlı gerçek zamanlı gözlem akışlarını yönetir. Detaylar için [OpenClaw Entegrasyon Kılavuzu](https://docs.claude-mem.ai/openclaw-integration) bölümüne bakın.
-
 **Temel Özellikler:**
 
 - 🧠 **Kalıcı Bellek** - Bağlam oturumlar arası hayatta kalır
