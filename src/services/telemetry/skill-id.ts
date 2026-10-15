@@ -10,11 +10,13 @@
  */
 
 export const FIRST_PARTY_SKILL_IDS = [
+  'agent-cost-report',
   'babysit',
   'ccs-align',
   'cloud-sync',
   'design-is',
   'do',
+  'handoff',
   'how-it-works',
   'knowledge-agent',
   'learn-codebase',
@@ -23,6 +25,7 @@ export const FIRST_PARTY_SKILL_IDS = [
   'mode-creator',
   'oh-my-issues',
   'pathfinder',
+  'screenpipe',
   'smart-explore',
   'standup',
   'timeline-report',

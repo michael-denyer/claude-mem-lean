@@ -57,6 +57,7 @@ import { renderSummaryFields } from '../../../src/services/context/sections/Summ
 import type { SessionSummary } from '../../../src/services/context/types.js';
 
 import type { Observation, ContextConfig, PriorMessages } from '../../../src/services/context/types.js';
+import { formatContextReferenceId } from '../../../src/services/context/formatters/id-display.js';
 
 function createTestObservation(overrides: Partial<Observation> = {}): Observation {
   return {
@@ -89,6 +90,7 @@ function createTestConfig(overrides: Partial<ContextConfig> = {}): ContextConfig
     fullObservationField: 'narrative',
     showLastSummary: true,
     showLastMessage: true,
+    mainAgentOnly: true,
     ...overrides,
   };
 }
@@ -253,6 +255,15 @@ describe('AgentFormatter', () => {
 
       expect(joined).toContain('Session started');
     });
+
+    it('should abbreviate a server summary UUID when fetch-by-id is unsupported', () => {
+      const summary = { id: '3c4b2513-5048-45fa-95e0-e3222ae99671', request: 'Ship it' };
+
+      expect(renderAgentSummaryItem(summary, '10:00', { fetchByIdSupported: false })[0])
+        .toBe('S3c4b2513 Ship it (10:00)');
+      expect(renderAgentSummaryItem(summary, '10:00')[0])
+        .toBe('S3c4b2513-5048-45fa-95e0-e3222ae99671 Ship it (10:00)');
+    });
   });
 
   describe('renderAgentSummaryField', () => {
@@ -378,5 +389,25 @@ describe('AgentFormatter', () => {
       expect(joined).toContain('Completed');
       expect(joined).toContain('Next Steps');
     });
+  });
+});
+
+describe('formatContextReferenceId', () => {
+  const UUID = '3c4b2513-5048-45fa-95e0-e3222ae99671';
+
+  it('abbreviates UUID ids to their 8-char prefix when fetch-by-id is unsupported', () => {
+    expect(formatContextReferenceId(UUID, { fetchByIdSupported: false })).toBe('3c4b2513');
+  });
+
+  it('keeps the full UUID when fetch-by-id is supported', () => {
+    expect(formatContextReferenceId(UUID, { fetchByIdSupported: true })).toBe(UUID);
+  });
+
+  it('defaults to the full id when fetchByIdSupported is omitted (backward compatible)', () => {
+    expect(formatContextReferenceId(UUID, {})).toBe(UUID);
+  });
+
+  it('leaves non-UUID (numeric) ids unchanged even when fetch-by-id is unsupported', () => {
+    expect(formatContextReferenceId(42, { fetchByIdSupported: false })).toBe('42');
   });
 });
