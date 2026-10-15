@@ -56,11 +56,6 @@ jobs:
       - name: Test
         run: bun test tests
 
-      # openclaw's suite lives outside tests/ (openclaw/src/index.test.ts), so
-      # the scoped step above no longer reaches it — run it explicitly.
-      - name: Test (openclaw)
-        run: bun test openclaw
-
   # #3482 was first characterised as a Windows bug, but a bare SIGKILL on the
   # stale worker orphans the identical uvx -> uv -> python chain on POSIX (the
   # descendants re-parent to init instead of surviving a single-PID

@@ -914,31 +914,6 @@ async function buildHooks() {
     const bugReportStats = fs.statSync(`${bugReportOutDir}/index.js`);
     console.log(`✓ bug-report built (${(bugReportStats.size / 1024).toFixed(2)} KB)`);
 
-    if (fs.existsSync('openclaw/src/index.ts')) {
-      console.log(`\n🔧 Building OpenClaw plugin...`);
-      const openclawOutDir = 'openclaw/dist';
-      if (!fs.existsSync(openclawOutDir)) {
-        fs.mkdirSync(openclawOutDir, { recursive: true });
-      }
-      await build({
-        entryPoints: ['openclaw/src/index.ts'],
-        bundle: true,
-        platform: 'node',
-        target: 'node18',
-        format: 'esm',
-        outfile: `${openclawOutDir}/index.js`,
-        minify: true,
-        logLevel: 'error',
-        external: [
-          'fs', 'fs/promises', 'path', 'os', 'child_process', 'url',
-          'crypto', 'http', 'https', 'net', 'stream', 'util', 'events',
-        ],
-      });
-
-      const openclawStats = fs.statSync(`${openclawOutDir}/index.js`);
-      console.log(`✓ openclaw plugin built (${(openclawStats.size / 1024).toFixed(2)} KB)`);
-    }
-
     if (fs.existsSync('src/integrations/opencode-plugin/index.ts')) {
       console.log(`\n🔧 Building OpenCode plugin...`);
       const opencodeOutDir = 'dist/opencode-plugin';
@@ -1054,10 +1029,6 @@ async function buildHooks() {
     console.log(`   - Transcript Watcher: transcript-watcher.cjs`);
     console.log(`   Output: ${npxCliOutDir}/`);
     console.log(`   - NPX CLI: index.js`);
-    if (fs.existsSync('openclaw/dist/index.js')) {
-      console.log(`   Output: openclaw/dist/`);
-      console.log(`   - OpenClaw Plugin: index.js`);
-    }
     if (fs.existsSync('dist/opencode-plugin/index.js')) {
       console.log(`   Output: dist/opencode-plugin/`);
       console.log(`   - OpenCode Plugin: index.js`);

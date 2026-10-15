@@ -20,21 +20,6 @@ describe('grok-bot install default provider', () => {
     expect(resolveInstallerProviderChoice({})).toBeUndefined();
   });
 
-  it('documents CMEM Pro as the grok-bot plugin default and host as opt-in', () => {
-    const skill = readFileSync(join(repoRoot, 'claude-mem-grok-bot/skills/install/SKILL.md'), 'utf-8');
-    const readme = readFileSync(join(repoRoot, 'claude-mem-grok-bot/README.md'), 'utf-8');
-    const defaultSection = skill.split('## Optional')[0];
-
-    expect(defaultSection).toContain('npx claude-mem install --ide grok-bot');
-    expect(defaultSection).not.toContain('npx claude-mem install --ide grok-bot --provider host');
-    expect(defaultSection).toContain('https://cmem.ai/api/inference/v1');
-    expect(defaultSection).toContain('cmem-observer');
-    expect(defaultSection.toLowerCase()).not.toContain('host-login observer (default)');
-    expect(skill).toContain('npx claude-mem install --ide grok-bot --provider host');
-    expect(readme).toContain('npx claude-mem install --ide grok-bot');
-    expect(readme).not.toContain('npx claude-mem install --ide grok-bot --provider host');
-  });
-
   it('keeps installer provider-cutover and does not recycle a healthy worker from settings POST', () => {
     const source = readFileSync(join(repoRoot, 'src/npx-cli/commands/install.ts'), 'utf-8');
     expect(source).toContain("'provider-cutover'");
