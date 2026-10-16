@@ -18,7 +18,7 @@ async function withFeed(store: SessionStore, check: (url: string) => Promise<voi
 }
 
 it('keeps repeated native turns in the viewer while deduplicating only legacy deliveries', async () => {
-  const store = new SessionStore(':memory:', { syncOpsEnabled: false });
+  const store = new SessionStore(':memory:');
   try {
     const sid = store.createSDKSession('native-feed', 'project', 'again', undefined, 'hermes');
     const first = store.saveNativeUserPrompt('native-feed', sid, 'turn-one', 'again');
@@ -45,7 +45,7 @@ it('keeps repeated native turns in the viewer while deduplicating only legacy de
 });
 
 it('does not let a native turn erase an earlier legacy prompt with equal text', async () => {
-  const store = new SessionStore(':memory:', { syncOpsEnabled: false });
+  const store = new SessionStore(':memory:');
   try {
     const sid = store.createSDKSession('mixed-feed', 'project', 'again');
     const legacy = store.saveUserPrompt('mixed-feed', 1, 'again', sid);
@@ -58,7 +58,7 @@ it('does not let a native turn erase an earlier legacy prompt with equal text', 
 });
 
 it('does not let a later legacy delivery erase an earlier native turn with equal text', async () => {
-  const store = new SessionStore(':memory:', { syncOpsEnabled: false });
+  const store = new SessionStore(':memory:');
   try {
     const sid = store.createSDKSession('native-then-legacy', 'project', 'again');
     const native = store.saveNativeUserPrompt('native-then-legacy', sid, 'real-turn', 'again');

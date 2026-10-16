@@ -116,8 +116,6 @@ export class SearchRoutes extends BaseRouteHandler {
     // next time (liveness plan, Phase 6). Null in tests and tools that only
     // need the route.
     private contextCache: Pick<ContextCacheService, 'recordLiveRender' | 'removalGenerationNow' | 'warmVariant'> | null = null,
-    // Cloud sync's pull loop (null when sync is off). Structural so tests can stub it.
-    private syncClient: { pullOnce(options?: { timeoutMs?: number }): Promise<void>; isSocketLive(): boolean } | null = null,
   ) {
     super();
   }
@@ -392,12 +390,6 @@ export class SearchRoutes extends BaseRouteHandler {
     }
 
     const injectStartedAt = Date.now();
-    // Local-first: render from the local db now, never wait on the network.
-    // The pull is only a nudge (wakes a suspended sync loop, catches up for the
-    // next session); ops it applies invalidate the cached files as usual.
-    if (this.syncClient && !this.syncClient.isSocketLive()) {
-      void this.syncClient.pullOnce();
-    }
     // A delete that lands while this renders must not see its row written back to the cache.
     const removalGenerationAtRenderStart = this.contextCache?.removalGenerationNow();
     let rendered: ContextInjectRender;
@@ -530,9 +522,6 @@ export class SearchRoutes extends BaseRouteHandler {
 
     const { generateContextWithStats } = await import('../../../context-generator.js');
 
-    // Session-start sync freshness lives in handleContextInject (the live
-    // path); a cached re-render needs none: ContextCacheService only keeps
-    // files servable while Realtime delivers ops as they happen.
     const primaryProject = projects[projects.length - 1];
     const cwd = request.cwd ?? `/context/${primaryProject}`;
 

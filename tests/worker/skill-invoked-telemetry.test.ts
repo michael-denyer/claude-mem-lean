@@ -187,7 +187,7 @@ describe('skill_invoked from session-init slash prompts', () => {
     store = new SessionStore(new Database(':memory:'));
     const routes = new SessionRoutes(
       { getSession: () => undefined } as any,
-      { getSessionStore: () => store, getCloudSync: () => null } as any,
+      { getSessionStore: () => store } as any,
       {} as any,
       {} as any,
       {} as any,

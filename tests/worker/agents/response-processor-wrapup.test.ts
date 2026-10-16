@@ -109,7 +109,6 @@ function createDbManager(result: StorageResult): DatabaseManager {
   return {
     getSessionStore: () => sessionStore,
     getChromaSync: () => null,
-    getCloudSync: () => null,
   } as unknown as DatabaseManager;
 }
 

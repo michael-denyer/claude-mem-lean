@@ -121,7 +121,7 @@ describe('Codex provider integration', () => {
     const confirm = mock(async () => 1);
     const db = { getSessionStore: () => ({ storeObservations: store,
       ensureMemorySessionIdRegistered: () => 'codex-test' }),
-      getChromaSync: () => null, getCloudSync: () => null };
+      getChromaSync: () => null };
     const manager = { getClaimedMessages: () => [], confirmClaimedMessages: confirm };
     const process = (text: string, s = session()) =>
       processAgentResponse(text, s, db as any, manager as any, undefined, 0, 1, 'Codex');

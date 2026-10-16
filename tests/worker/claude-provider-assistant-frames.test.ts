@@ -175,7 +175,6 @@ function createHarness(session: ActiveSession) {
       storeObservations,
     }),
     getChromaSync: () => null,
-    getCloudSync: () => null,
   };
 
   return {

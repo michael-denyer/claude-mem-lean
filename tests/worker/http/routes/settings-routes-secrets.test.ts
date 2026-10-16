@@ -49,7 +49,6 @@ const SECRET_ENV_KEYS = [
   'CLAUDE_MEM_GEMINI_API_KEY',
   'CLAUDE_MEM_OPENROUTER_API_KEY',
   'CLAUDE_MEM_CHROMA_API_KEY',
-  'CLAUDE_MEM_CLOUD_SYNC_TOKEN',
   'CLAUDE_MEM_TV_TOKEN',
   'CLAUDE_MEM_PRO_MEMORY_KEY',
   'CLAUDE_MEM_REDIS_URL',
@@ -92,12 +91,11 @@ describe('SettingsRoutes — credential redaction and host bind (#3861)', () => 
     }
   });
 
-  it('GET /api/settings masks provider and sync secrets and leaves display prefs intact', () => {
+  it('GET /api/settings masks provider secrets and leaves display prefs intact', () => {
     const secrets = {
       CLAUDE_MEM_GEMINI_API_KEY: 'gemini-secret-1234',
       CLAUDE_MEM_OPENROUTER_API_KEY: 'or-secret-5678',
       CLAUDE_MEM_CHROMA_API_KEY: 'chroma-secret-abcd',
-      CLAUDE_MEM_CLOUD_SYNC_TOKEN: 'sync-token-wxyz',
       CLAUDE_MEM_TV_TOKEN: 'tv-token-9999',
       CLAUDE_MEM_PRO_MEMORY_KEY: 'pro-memory-key-aaaa',
       CLAUDE_MEM_GROK_BOT_WEBHOOK_SECRET: 'brainbeat-secret-bbbb',

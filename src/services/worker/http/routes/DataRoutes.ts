@@ -22,7 +22,6 @@ import { getFirstObservationCreatedAt } from '../../../sqlite/observations/recen
 import { getParkedSlotWaiterCount } from '../../../../supervisor/process-registry.js';
 import { getUptimeSeconds } from '../../../../shared/uptime.js';
 import { assertCanonicalDecimal, type ContentKind } from '../../../sync/CanonicalContent.js';
-import type { CloudSync } from '../../../sync/CloudSync.js';
 import { emitContextInvalidation } from '../../../../shared/context-invalidation.js';
 
 const integerArrayLike = z.preprocess((value) => {
@@ -93,12 +92,12 @@ const toolUsesBatchSchema = z.object({
   platform_source: z.string().optional(),
 }).passthrough();
 
-// The cloud/export shape (CloudSync `toCloud`) carries columns that are stored
-// locally as JSON strings — facts, concepts, files_read/modified — as real
-// arrays. Re-stringify them at the boundary so every downstream consumer
-// (the SQLite binding layer and the ChromaDB `JSON.parse` path alike) sees the
-// canonical JSON-string shape rather than a raw array. Without this, the array
-// crashes bun:sqlite ("Binding expected string…") and silently drops from Chroma.
+// The export shape carries columns that are stored locally as JSON strings —
+// facts, concepts, files_read/modified — as real arrays. Re-stringify them at
+// the boundary so every downstream consumer (the SQLite binding layer and the
+// ChromaDB `JSON.parse` path alike) sees the canonical JSON-string shape rather
+// than a raw array. Without this, the array crashes bun:sqlite ("Binding
+// expected string…") and silently drops from Chroma.
 const OBSERVATION_JSON_FIELDS = ['facts', 'concepts', 'files_read', 'files_modified'] as const;
 const SUMMARY_JSON_FIELDS = ['files_read', 'files_edited'] as const;
 
@@ -425,49 +424,17 @@ export class DataRoutes extends BaseRouteHandler {
     this.deleteSyncedContent(req, res, 'prompt', 'user_prompts');
   });
 
-  /** Pure safety check: can this row be deleted right now without stranding a replica? No mutation. */
-  private assertRowDeletable(
-    cloudSync: CloudSync | null,
+  private deleteRow(
     store: ReturnType<DatabaseManager['getSessionStore']>,
-    kind: ContentKind,
-    originLocalId: string,
-  ): { ok: true } | { ok: false; status: number; error: string } {
-    if (cloudSync?.isConfigured()) {
-      if (!cloudSync.status().deviceId) {
-        return { ok: false, status: 503, error: 'cloud sync identity unavailable; refusing an unreplicated delete' };
-      }
-      return { ok: true };
-    }
-    // A row with an acknowledged entity head must never be silently deleted
-    // while its sync identity is unavailable: that would strand replicas.
-    const acknowledged = store.db.prepare(`
-      SELECT 1 AS found FROM sync_entity_heads
-      WHERE kind = ? AND origin_local_id = ? LIMIT 1
-    `).get(kind, originLocalId) as { found: number } | undefined;
-    if (acknowledged) {
-      return { ok: false, status: 503, error: 'cloud sync unavailable; refusing an unreplicated delete' };
-    }
-    return { ok: true };
-  }
-
-  /** Mutation only — caller must have already called assertRowDeletable for this row. */
-  private commitRowDelete(
-    cloudSync: CloudSync | null,
-    store: ReturnType<DatabaseManager['getSessionStore']>,
-    kind: ContentKind,
     table: 'observations' | 'session_summaries' | 'user_prompts',
     originLocalId: string,
-  ): string | null {
-    if (cloudSync?.isConfigured()) {
-      return cloudSync.queueDelete(kind, originLocalId);
-    }
+  ): void {
     store.db.prepare(
       `DELETE FROM ${table} WHERE id = ? AND origin_device_id IS NULL`
     ).run(originLocalId);
-    return null;
   }
 
-  /** Production deletion surface: safety check and row delete for a single content row. */
+  /** Production deletion surface: row delete for a single content row. */
   private deleteSyncedContent(
     req: Request,
     res: Response,
@@ -492,19 +459,12 @@ export class DataRoutes extends BaseRouteHandler {
       return;
     }
 
-    const cloudSync = this.dbManager.getCloudSync();
-    const check = this.assertRowDeletable(cloudSync, store, kind, originLocalId);
-    if (!check.ok) {
-      res.status(check.status).json({ error: check.error });
-      return;
-    }
-
-    const entityRev = this.commitRowDelete(cloudSync, store, kind, table, originLocalId);
+    this.deleteRow(store, table, originLocalId);
     emitContextInvalidation('all', `delete-${kind}`, 'removal');
 
     // Only after the delete committed: open viewer tabs drop the row live.
     this.sseBroadcaster.broadcast({ type: 'item_deleted', itemType: kind, id: Number(originLocalId) });
-    res.json({ success: true, id: originLocalId, kind, entity_rev: entityRev });
+    res.json({ success: true, id: originLocalId, kind });
   }
 
   private handleGetStats = this.wrapHandler((req: Request, res: Response): void => {
@@ -583,9 +543,8 @@ export class DataRoutes extends BaseRouteHandler {
   /**
    * Delete one session and everything captured in it. A session is identified
    * by (platform_source, content_session_id): the same content id can exist
-   * under two hosts. Sync-safe like the per-row deletes: every local child row
-   * is tombstoned for cloud sync, and the session row is removed only after its
-   * children are gone, so the FK cascade never drops a replicated row.
+   * under two hosts. The session row is removed only after its local children
+   * are gone, so the FK cascade never drops a row synced from another device.
    */
   private handleDeleteSession = this.wrapHandler((req: Request, res: Response): void => {
     const rawPlatformSource = this.toStringParam(req.params.platformSource);
@@ -651,24 +610,12 @@ export class DataRoutes extends BaseRouteHandler {
     ).all(sessionRow.id) as Array<{ id: string }>;
     childRows.push(...prompts.map(row => ({ kind: 'prompt' as ContentKind, table: 'user_prompts' as const, id: row.id })));
 
-    const cloudSync = this.dbManager.getCloudSync();
-
-    // Pre-flight: validate every row can be safely deleted BEFORE mutating any of them.
-    for (const row of childRows) {
-      const check = this.assertRowDeletable(cloudSync, store, row.kind, row.id);
-      if (!check.ok) {
-        res.status(check.status).json({ error: check.error });
-        return;
-      }
-    }
-
     const deletedCounts = { observations: 0, summaries: 0, prompts: 0, toolUses: 0 };
-    // One transaction for the whole session: queueDelete's own transaction
-    // nests as a savepoint, so a failure part-way rolls back every tombstone
-    // and row delete instead of leaving a half-deleted session.
+    // One transaction for the whole session, so a failure part-way rolls back
+    // every row delete instead of leaving a half-deleted session.
     store.db.transaction(() => {
       for (const row of childRows) {
-        this.commitRowDelete(cloudSync, store, row.kind, row.table, row.id);
+        this.deleteRow(store, row.table, row.id);
         if (row.kind === 'observation') deletedCounts.observations++;
         else if (row.kind === 'summary') deletedCounts.summaries++;
         else deletedCounts.prompts++;

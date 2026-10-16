@@ -108,7 +108,6 @@
         "icon": "cloud",
         "pages": [
           "hosted-server",
-          "cloud-sync",
           "cmem-pro-headless"
         ]
       },

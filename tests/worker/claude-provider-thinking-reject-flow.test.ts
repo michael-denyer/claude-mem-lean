@@ -155,7 +155,6 @@ function createHarness(session: ActiveSession) {
       storeObservations: () => ({ observationIds: [], summaryId: null, createdAtEpoch: 0 }),
     }),
     getChromaSync: () => null,
-    getCloudSync: () => null,
   };
   return {
     confirmClaimedMessages,

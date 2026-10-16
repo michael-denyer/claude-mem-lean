@@ -108,7 +108,6 @@ describe('OpenAICompatibleProvider init response', () => {
         syncObservation: mock(() => Promise.resolve()),
         syncSummary: mock(() => Promise.resolve()),
       }),
-      getCloudSync: () => null,
     } as unknown as DatabaseManager;
 
     sessionManager = {

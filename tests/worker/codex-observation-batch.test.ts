@@ -24,7 +24,7 @@ function harness(count = 8, chars = 32000) {
   const buffer = manager.getMessageBuffer();
   const store = mock(() => ({ observationIds: [], summaryId: null, createdAtEpoch: 1 }));
   const db = { getSessionStore: () => ({ storeObservations: store,
-    ensureMemorySessionIdRegistered: () => 'test' }), getChromaSync: () => null, getCloudSync: () => null };
+    ensureMemorySessionIdRegistered: () => 'test' }), getChromaSync: () => null };
   const provider: any = new CodexProvider(db as any, manager);
   provider.conversationMaxChars = () => 1000000;
   const enqueue = (message: Partial<PendingMessage> = {}) => buffer.enqueue(1, {

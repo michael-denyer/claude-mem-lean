@@ -69,8 +69,7 @@ stable contents, skips hidden files, symlinks and files larger than 64 KiB, and
 never rewrites source files. Exact content fingerprints deduplicate committed
 snapshots across watcher restarts and simultaneous processes. Updates create
 new historical snapshots; deleting a source note does not delete its archive.
-Imported notes follow the user's existing cloud-sync settings. No model calls
-are made to import a note.
+No model calls are made to import a note.
 The worker stays running while an explicit folder watcher is active; the idle
 exit timer would otherwise stop capture of external note changes.
 

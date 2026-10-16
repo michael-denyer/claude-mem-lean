@@ -5,7 +5,6 @@ import { spawn } from 'child_process';
 import { logger } from '../../utils/logger.js';
 import { getPathModeProjectContext, getProjectContext } from '../../utils/project-name.js';
 import { ChromaSync, MergedIntoProjectTarget } from '../sync/ChromaSync.js';
-import { emitRemapProject, hasSyncLane } from '../sync/remap-outbox.js';
 import { paths } from '../../shared/paths.js';
 import { SettingsDefaultsManager } from '../../shared/SettingsDefaultsManager.js';
 import { openConfiguredSqliteDatabase } from '../sqlite/connection.js';
@@ -521,14 +520,6 @@ export async function adoptMergedWorktrees(opts: {
       'UPDATE session_summaries SET merged_into_project = ? WHERE project = ? AND merged_into_project IS NULL'
     );
 
-    // Two-lane sync (plan Phase 3 task 2): this function runs on its OWN DB
-    // connection, so the remap must be pure SQL — emitRemapProject bumps
-    // sync_rev to R = 1+MAX per the SyncApply contract, re-nulls synced_at
-    // on native rows, and queues the remap_project mutation op in the same
-    // transaction. Pre-migration DBs (no sync lane yet) take the legacy
-    // plain-UPDATE path.
-    const syncLane = hasSyncLane(db);
-
     const adoptWorktreeInTransaction = (worktreeProject: string) => {
       const rows = selectObsForPatch.all(
         worktreeProject,
@@ -539,20 +530,8 @@ export async function adoptMergedWorktrees(opts: {
         parentProject
       ) as Array<{ id: number }>;
 
-      let obsChanges: number;
-      let sumChanges: number;
-      if (syncLane) {
-        const remap = emitRemapProject(
-          db!,
-          { project: worktreeProject, merged_into_project_is_null: true },
-          { merged_into_project: parentProject }
-        );
-        obsChanges = remap.observations;
-        sumChanges = remap.summaries;
-      } else {
-        obsChanges = updateObs.run(parentProject, worktreeProject).changes;
-        sumChanges = updateSum.run(parentProject, worktreeProject).changes;
-      }
+      const obsChanges = updateObs.run(parentProject, worktreeProject).changes;
+      const sumChanges = updateSum.run(parentProject, worktreeProject).changes;
       for (const r of rows) {
         adoptedChromaTargets.push({ docType: 'observation', sqliteId: r.id });
       }

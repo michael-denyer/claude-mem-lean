@@ -137,17 +137,10 @@ function expectSqliteMerge(dbPath: string): void {
   const store = new SessionStore(dbPath);
   const observation = store.db.prepare('SELECT project, merged_into_project FROM observations').get();
   const summary = store.db.prepare('SELECT project, merged_into_project FROM session_summaries').get();
-  const ops = (store.db.prepare('SELECT body FROM sync_outbox').all() as Array<{ body: string }>)
-    .map(op => JSON.parse(op.body));
   store.close();
 
   expect(observation).toEqual({ project: sourceProject, merged_into_project: targetProject });
   expect(summary).toEqual({ project: sourceProject, merged_into_project: targetProject });
-  expect(ops).toContainEqual({
-    op: 'remap_project',
-    where: { project: sourceProject, merged_into_project_is_null: true },
-    fields: { merged_into_project: targetProject },
-  });
 }
 
 function mergedCounts(result: AdoptionResult | ProjectMergeResult): number[] {

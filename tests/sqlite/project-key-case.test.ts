@@ -1,8 +1,7 @@
 // #3531 — two checkouts whose directory names differ only in case
 // (`PasteyPal` vs `pasteypal`) used to fork memory into two buckets because
 // project keys were compared with BINARY collation. Reads now compare with
-// COLLATE NOCASE; stored keys are never rewritten, so nothing is re-keyed and
-// there is nothing to remap for cloud sync.
+// COLLATE NOCASE; stored keys are never rewritten, so nothing is re-keyed.
 import { describe, expect, it } from 'bun:test';
 import { SessionStore } from '../../src/services/sqlite/SessionStore.js';
 import { SessionSearch } from '../../src/services/sqlite/SessionSearch.js';

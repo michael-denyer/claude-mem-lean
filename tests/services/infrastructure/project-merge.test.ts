@@ -1,6 +1,5 @@
 // plan-20 step 2 — `claude-mem project merge <from> <into>` folds one project's
-// memory into another without rewriting any row, and the fold travels to every
-// device through cloud sync as a remap_project op.
+// memory into another without rewriting any row.
 import { afterAll, afterEach, describe, expect, it, mock } from 'bun:test';
 import { mkdtempSync, mkdirSync, rmSync } from 'node:fs';
 import path from 'node:path';
@@ -61,7 +60,7 @@ function freshDatabase(): { dataDirectory: string; dbPath: string } {
 }
 
 describe('project merge (plan-20)', () => {
-  it('stamps merged_into_project, keeps project, and queues the remap for cloud sync', async () => {
+  it('stamps merged_into_project and keeps project', async () => {
     const { dataDirectory, dbPath } = freshDatabase();
     const store = new SessionStore(dbPath);
     const fromId = seed(store, 'memory-a', 'frontend');
@@ -75,19 +74,12 @@ describe('project merge (plan-20)', () => {
     const rows = verify.db.prepare('SELECT id, project, merged_into_project FROM observations ORDER BY id').all() as Array<{
       id: number; project: string; merged_into_project: string | null;
     }>;
-    const ops = (verify.db.prepare('SELECT body FROM sync_outbox').all() as Array<{ body: string }>)
-      .map(op => JSON.parse(op.body));
     verify.close();
 
     expect(rows).toEqual([
       { id: fromId, project: 'frontend', merged_into_project: 'work' },
       { id: otherId, project: 'unrelated', merged_into_project: null },
     ]);
-    expect(ops).toContainEqual({
-      op: 'remap_project',
-      where: { project: 'frontend', merged_into_project_is_null: true },
-      fields: { merged_into_project: 'work' },
-    });
   });
 
   it('dry run reports the counts and changes nothing', async () => {
@@ -101,10 +93,8 @@ describe('project merge (plan-20)', () => {
 
     const verify = new SessionStore(dbPath);
     const merged = verify.db.prepare('SELECT merged_into_project FROM observations').get() as { merged_into_project: string | null };
-    const ops = verify.db.prepare("SELECT COUNT(*) AS n FROM sync_outbox WHERE body LIKE '%remap_project%'").get() as { n: number };
     verify.close();
     expect(merged.merged_into_project).toBeNull();
-    expect(ops.n).toBe(0);
   });
 
   it('leaves rows already merged elsewhere alone', async () => {
@@ -148,10 +138,8 @@ describe('project merge (plan-20)', () => {
 
     const verify = new SessionStore(dbPath);
     const row = verify.db.prepare('SELECT merged_into_project FROM observations WHERE id = ?').get(obsId) as { merged_into_project: string | null };
-    const ops = verify.db.prepare("SELECT COUNT(*) AS n FROM sync_outbox WHERE body LIKE '%remap_project%'").get() as { n: number };
     verify.close();
     expect(row.merged_into_project).toBeNull();
-    expect(ops.n).toBe(0);
   });
 
   it('refuses a merge into itself', async () => {

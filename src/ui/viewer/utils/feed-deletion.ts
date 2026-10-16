@@ -19,16 +19,10 @@ export function describeDeleteFailure(status: number): string {
   if (status === 404) {
     return 'Not deleted: this memory was synced from another device (delete it there), or it is already gone.';
   }
-  if (status === 503) {
-    return 'Not deleted: cloud sync is unavailable, so the delete could not be recorded for your other devices. Try again once sync reconnects.';
-  }
   return `Not deleted: the worker answered HTTP ${status}.`;
 }
 
-/**
- * Delete one memory through the worker's sync-safe endpoint (tombstone and row
- * delete in one transaction). Rejects with a user-facing message.
- */
+/** Delete one memory through the worker. Rejects with a user-facing message. */
 export async function deleteFeedItem(
   itemType: DeletableItemType,
   id: number,

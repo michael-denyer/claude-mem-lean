@@ -8,7 +8,7 @@ import { SettingsDefaultsManager } from '../../../src/shared/SettingsDefaultsMan
 
 const scenario = process.argv[2];
 const store = new SessionStore(':memory:');
-const db = { getSessionStore: () => store, getSessionById: (id: number) => store.getSessionById(id), getChromaSync: () => null, getCloudSync: () => null } as any;
+const db = { getSessionStore: () => store, getSessionById: (id: number) => store.getSessionById(id), getChromaSync: () => null } as any;
 const manager = new SessionManager(db);
 const sessionId = store.createSDKSession('owned-gemini-session', 'owned-project', 'Inspect the owned file', undefined, 'claude');
 const session = manager.initializeSession(sessionId);

@@ -38,7 +38,7 @@ describe('captured file paths containing edge whitespace', () => {
     const store = new SessionStore(':memory:');
     const dbManager = {
       getSessionById: (id: number) => store.getSessionById(id),
-      getSessionStore: () => store, getChromaSync: () => null, getCloudSync: () => null,
+      getSessionStore: () => store, getChromaSync: () => null,
     } as unknown as DatabaseManager;
     const manager = new SessionManager(dbManager);
     const sid = store.createSDKSession('edge-path-content', 'edge-project', 'Write the file');

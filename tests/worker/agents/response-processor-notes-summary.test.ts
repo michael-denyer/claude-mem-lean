@@ -20,7 +20,6 @@ describe('notes-only summary replies', () => {
       getSessionById: (id: number) => store.getSessionById(id),
       getSessionStore: () => store,
       getChromaSync: () => null,
-      getCloudSync: () => null,
     } as unknown as DatabaseManager;
     const manager = new SessionManager(dbManager);
     const sid = store.createSDKSession('notes-content', 'notes-project', 'Review notes');

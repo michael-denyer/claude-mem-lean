@@ -259,7 +259,6 @@ describe('Qwen session prompts through the real session routes', () => {
         getSessionStore: () => store,
         getSessionById: (id: number) => store.getSessionById(id),
         getChromaSync: () => null,
-        getCloudSync: () => null,
       } as unknown as DatabaseManager;
       const sessionManager = new SessionManager(dbManager);
       cleanup.push(() => sessionManager.shutdownAll());

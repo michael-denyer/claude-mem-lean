@@ -29,7 +29,6 @@ function harness() {
       ensureMemorySessionIdRegistered: () => 'test',
     }),
     getChromaSync: () => null,
-    getCloudSync: () => null,
   };
   const provider: any = new CodexProvider(db as any, manager);
   provider.conversationMaxChars = () => 1_000_000;

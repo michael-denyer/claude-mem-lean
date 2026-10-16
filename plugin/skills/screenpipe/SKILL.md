@@ -64,7 +64,7 @@ NOTE
 The helper finds the local worker from `CLAUDE_MEM_WORKER_PORT` or
 `~/.claude-mem/settings.json`; pass `--worker-url` only to override it, and never
 point it at a hosted server. Saved notes are stored like any other claude-mem
-memory: in the local database, and in your cloud account if cloud sync is on.
+memory, in the local database.
 Report success only after
 the helper returns `success: true` and an observation ID. Use `get_observations`
 with that ID to verify readback. A timeout may occur after a write; check existing

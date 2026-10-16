@@ -28,10 +28,9 @@ export interface ProviderLabels {
  */
 export function buildProviderLabels(): ProviderLabels {
   return {
-    cmem: 'CMEM Pro (Tokens for Observations + Real-Time Cloud Sync '
-      + 'for Claude.ai, ChatGPT.com, anything that accepts an MCP Connector)',
+    cmem: 'CMEM Pro (Tokens for Observations)',
     cmemHint: '',
-    claude: 'Use your Anthropic Max Plan (no cloud sync, uses tokens for observations)',
+    claude: 'Use your Anthropic Max Plan (uses tokens for observations)',
     claudeHint: '',
   };
 }

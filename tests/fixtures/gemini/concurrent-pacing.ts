@@ -8,7 +8,7 @@ import { SettingsDefaultsManager } from '../../../src/shared/SettingsDefaultsMan
 
 const stall = process.argv[2] === 'stalled';
 const store = new SessionStore(':memory:');
-const db: any = { getSessionStore: () => store, getSessionById: (id: number) => store.getSessionById(id), getChromaSync: () => null, getCloudSync: () => null };
+const db: any = { getSessionStore: () => store, getSessionById: (id: number) => store.getSessionById(id), getChromaSync: () => null };
 const manager = new SessionManager(db);
 const mode = ModeManager.getInstance() as any;
 const oldMode = mode.activeMode, oldModeId = mode.activeModeId;

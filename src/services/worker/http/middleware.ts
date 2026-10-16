@@ -151,11 +151,11 @@ export function isOwnPageOrigin(origin: string, rawHost: string | undefined, pol
 
 /**
  * Refuses a DELETE sent by a browser page other than the worker's own (see
- * isOwnPageOrigin). Deletes are tombstoned for cloud sync, so a page that CORS
- * lets read the API (any http://localhost:* page) must not be able to remove
- * memories on every device. Reads stay open to those pages, and clients that
- * send no Origin (hooks, the CLI, curl) keep the loopback-trust model. Worker
- * runtime only, mounted right after the Host check.
+ * isOwnPageOrigin). A page that CORS lets read the API (any http://localhost:*
+ * page) must not be able to remove memories. Reads stay open to those pages,
+ * and clients that send no Origin (hooks, the CLI, curl) keep the
+ * loopback-trust model. Worker runtime only, mounted right after the Host
+ * check.
  */
 export function createForeignPageDeleteGuard(policy: WorkerOriginPolicy): RequestHandler {
   return (req: Request, res: Response, next: NextFunction): void => {

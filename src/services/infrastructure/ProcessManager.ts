@@ -8,7 +8,6 @@ import { logger } from '../../utils/logger.js';
 import { sanitizeEnv } from '../../supervisor/env-sanitizer.js';
 import { removeOwnedPidFile } from '../../supervisor/shutdown.js';
 import { getSupervisor, validateWorkerPidFile, type ValidateWorkerPidStatus } from '../../supervisor/index.js';
-import { emitRemapProject, hasSyncLane } from '../sync/remap-outbox.js';
 import { buildWorktreeProjectKey } from '../../utils/project-name.js';
 import { paths } from '../../shared/paths.js';
 import { HOOK_TIMEOUTS, getTimeout } from '../../shared/hook-constants.js';
@@ -383,32 +382,13 @@ function executeCwdRemap(dbPath: string, effectiveDataDir: string, markerPath: s
       const updObs     = db.prepare('UPDATE observations      SET project = ? WHERE memory_session_id = ?');
       const updSum     = db.prepare('UPDATE session_summaries SET project = ? WHERE memory_session_id = ?');
 
-      // Two-lane sync (plan Phase 3 task 2): this remap runs on its OWN DB
-      // connection, so it cannot reach CloudSync.notify() — emitRemapProject
-      // does the pure-SQL rev bump (R = 1+MAX per the SyncApply contract),
-      // re-nulls synced_at on native rows, and queues the remap_project
-      // mutation op inside the same transaction; the worker's next startup
-      // drain or notify() picks it up. Pre-migration DBs (no sync lane yet)
-      // take the legacy plain-UPDATE path.
-      const syncLane = hasSyncLane(db);
-
       let sessionN = 0, obsN = 0, sumN = 0;
       const tx = db.transaction(() => {
         for (const t of targets) {
           sessionN += updSession.run(t.newProject, t.sessionId).changes;
           if (t.memorySessionId) {
-            if (syncLane) {
-              const remap = emitRemapProject(
-                db,
-                { memory_session_id: t.memorySessionId },
-                { project: t.newProject }
-              );
-              obsN += remap.observations;
-              sumN += remap.summaries;
-            } else {
-              obsN += updObs.run(t.newProject, t.memorySessionId).changes;
-              sumN += updSum.run(t.newProject, t.memorySessionId).changes;
-            }
+            obsN += updObs.run(t.newProject, t.memorySessionId).changes;
+            sumN += updSum.run(t.newProject, t.memorySessionId).changes;
           }
         }
       });

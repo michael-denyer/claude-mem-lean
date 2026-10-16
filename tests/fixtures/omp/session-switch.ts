@@ -13,7 +13,7 @@ const delayed=process.argv[3]==='delayed';
 const dataDir=process.env.CLAUDE_MEM_DATA_DIR!;
 const cwd=join(dataDir,'owned-project');mkdirSync(cwd,{recursive:true});
 const store=new SessionStore(':memory:');
-const db:any={getSessionStore:()=>store,getSessionById:(id:number)=>store.getSessionById(id),getChromaSync:()=>null,getCloudSync:()=>null};
+const db:any={getSessionStore:()=>store,getSessionById:(id:number)=>store.getSessionById(id),getChromaSync:()=>null};
 const manager=new SessionManager(db);
 const broadcaster=new Proxy({},{get:()=>()=>{}}) as any;
 const route=new SessionRoutes(manager,db,{} as any,{} as any,{} as any,broadcaster,{} as any,{} as any) as any;

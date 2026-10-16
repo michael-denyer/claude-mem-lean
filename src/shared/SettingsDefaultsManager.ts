@@ -1,7 +1,7 @@
 
 import { readFileSync, existsSync, writeFileSync } from 'fs';
 import { basename, dirname, join } from 'path';
-import { homedir, hostname } from 'os';
+import { homedir } from 'os';
 import { HOOK_TIMEOUTS, defaultSessionInitRequestTimeoutMs, getTimeout } from './hook-constants.js';
 import { parseJsonWithBom, writeJsonFileAtomic } from './atomic-json.js';
 import { isOpenRouterApiUrl } from './openrouter-base-url.js';
@@ -20,17 +20,6 @@ import { settingsTarget, withoutStaleRootCopies } from './settings-document.js';
 // the trade: it is opt-out via this same key, whereas the alternative leaves
 // the feature dead on arrival for every pre-existing install.
 const LEGACY_TELEGRAM_TRIGGER_TYPES = 'security_alert';
-
-/** Pinned workers.dev hub from the Cloudflare SyncHub era. */
-const LEGACY_CLOUD_SYNC_HUB_HOST = 'sync-hub.black-pond-afbb.workers.dev';
-/**
- * Production cmem-sync Supabase function, which Connect handed out for a few
- * hours after the Supabase cutover. Supabase's Cloudflare WAF blocks plain
- * memory pushes there; the sync.cmem.ai proxy gzips them through.
- */
-const DIRECT_SUPABASE_CLOUD_SYNC_HUB_HOST = 'ziczmqtpmaxbornfghye.supabase.co';
-/** Canonical Pro hub after the Fly cutover. */
-const CANONICAL_CLOUD_SYNC_HUB_URL = 'https://sync.cmem.ai';
 
 // OpenRouter retires `:free` model ids on its own schedule, and the same seeding
 // (every default written on first load, persisted values winning over
@@ -149,21 +138,6 @@ function markRaisedDefaultDone(settingsPath: string, raised: RaisedDeadlineDefau
 // load, and every observer request loads settings (retry.ts), so the failure is
 // said once.
 const raisedDefaultFailuresReported = new Set<string>();
-
-function migratedCloudSyncHubUrl(raw: unknown): string | null {
-  if (typeof raw !== 'string') return null;
-  const trimmed = raw.trim();
-  if (trimmed.length === 0) return null;
-  try {
-    const hostname = new URL(trimmed).hostname;
-    if (hostname === LEGACY_CLOUD_SYNC_HUB_HOST || hostname === DIRECT_SUPABASE_CLOUD_SYNC_HUB_HOST) {
-      return CANONICAL_CLOUD_SYNC_HUB_URL;
-    }
-  } catch {
-    return null;
-  }
-  return null;
-}
 
 export interface SettingsDefaults {
   CLAUDE_MEM_MEMORY_SEARCH_HOOK_ENABLED: string;
@@ -285,20 +259,6 @@ export interface SettingsDefaults {
   CLAUDE_MEM_CHROMA_MAX_PENDING_MUTATIONS: string;
   CLAUDE_MEM_CHROMA_EMBEDDING_FUNCTION: string;  // chroma-mcp embedding function for new collections
   CLAUDE_MEM_CHROMA_UVX_PATH: string;            // uvx binary (or its folder) to launch chroma-mcp with
-  // Worker-native cloud sync. Active ⇔ TOKEN, USER_ID, and HUB_URL are all
-  // non-empty — there is no separate enabled flag. HUB_URL points at the
-  // two-lane sync hub (workers/sync-hub); while it is empty, sync is OFF
-  // entirely (the old per-kind cmem.ai lane was deleted in the hub cutover).
-  CLAUDE_MEM_CLOUD_SYNC_TOKEN: string;
-  CLAUDE_MEM_CLOUD_SYNC_USER_ID: string;
-  CLAUDE_MEM_CLOUD_SYNC_HUB_URL: string;
-  CLAUDE_MEM_CLOUD_SYNC_DEVICE_ID: string;
-  CLAUDE_MEM_CLOUD_SYNC_DEVICE_NAME: string;
-  CLAUDE_MEM_CLOUD_SYNC_WS: string;    // live updates via Supabase Realtime — 'false' disables live updates (HTTP polling only)
-  // Content flush knobs. 200-op pages + 30s timeout hit hub projection_busy
-  // (#3618). Defaults: 40 ops / 90s (hub projection lease).
-  CLAUDE_MEM_CLOUD_SYNC_CONTENT_BATCH_SIZE: string;
-  CLAUDE_MEM_CLOUD_SYNC_REQUEST_TIMEOUT_MS: string;
   CLAUDE_MEM_LLM_TIMEOUT_MS: string;
   CLAUDE_MEM_FIELD_OPTIMIZE_TIMEOUT_MS: string;
   CLAUDE_MEM_LLM_STREAM_IDLE_TIMEOUT_MS: string;
@@ -537,15 +497,6 @@ export class SettingsDefaultsManager {
     // collections only — changing it requires re-indexing.
     CLAUDE_MEM_CHROMA_EMBEDDING_FUNCTION: 'default',
     CLAUDE_MEM_CHROMA_UVX_PATH: '',            // Empty = search uv's install folders, then PATH (#4195)
-    // Worker-native cloud sync: credentials come from cmem.ai → Connect.
-    CLAUDE_MEM_CLOUD_SYNC_TOKEN: '',
-    CLAUDE_MEM_CLOUD_SYNC_USER_ID: '',
-    CLAUDE_MEM_CLOUD_SYNC_HUB_URL: '',  // sync-hub base URL (e.g. https://sync.cmem.ai). Empty = sync OFF
-    CLAUDE_MEM_CLOUD_SYNC_DEVICE_ID: '',      // Minted at first CloudSync start, then persisted back here
-    CLAUDE_MEM_CLOUD_SYNC_DEVICE_NAME: hostname(),  // Human-readable label for the cmem.ai Devices panel
-    CLAUDE_MEM_CLOUD_SYNC_WS: 'true',  // Live updates (Supabase Realtime `advance` broadcasts). 'false' disables live updates — sync stays fully correct, just poll-latency (prime directive #2)
-    CLAUDE_MEM_CLOUD_SYNC_CONTENT_BATCH_SIZE: '40',  // Drain page size; 200-op content pushes timed out under hub projection_busy
-    CLAUDE_MEM_CLOUD_SYNC_REQUEST_TIMEOUT_MS: '90000',  // Content-push AbortSignal; matches hub PROJECTION_LEASE_MS (90s)
     CLAUDE_MEM_LLM_TIMEOUT_MS: String(DEFAULT_LLM_TIMEOUT_MS),  // Per-attempt deadline for non-streamed observer requests (retry.ts); streamed OpenRouter/OpenAI-compatible requests use a 90s idle timeout + 300s cap (streamed-chat-completion.ts)
     CLAUDE_MEM_FIELD_OPTIMIZE_TIMEOUT_MS: String(DEFAULT_LLM_TIMEOUT_MS),  // Oversized-field condensation deadline (field-optimizer.ts); a request to the same backend, so the same deadline
     CLAUDE_MEM_LLM_STREAM_IDLE_TIMEOUT_MS: '90000',  // Streamed request idle window (streamed-chat-completion.ts): silence that ends a stream. Self-hosted backends queue behind a load balancer, and the queue wait reads as idle (#4737) — raise it there. Literal because shared cannot import from the worker; a drift test pins it to the shipped constant
@@ -769,27 +720,6 @@ export class SettingsDefaultsManager {
           } catch (error: unknown) {
             console.warn('[SETTINGS] Failed to migrate the retired OpenRouter model:', settingsPath, error instanceof Error ? error.message : String(error));
             // Continue with the in-memory migration even if the write fails
-          }
-        }
-      }
-
-      const rewrittenHubUrl = migratedCloudSyncHubUrl(flatSettings.CLAUDE_MEM_CLOUD_SYNC_HUB_URL);
-      if (rewrittenHubUrl !== null) {
-        flatSettings = {
-          ...flatSettings,
-          CLAUDE_MEM_CLOUD_SYNC_HUB_URL: rewrittenHubUrl,
-        };
-
-        if (!options.readOnly) {
-          try {
-            writeJsonFileAtomic(
-              settingsPath,
-              hasPeerRootKeys ? { ...writableRoot, env: flatSettings } : flatSettings,
-              { mode: 0o600 },
-            );
-            console.warn('[SETTINGS] Migrated cloud sync hub URL to', rewrittenHubUrl, 'from a retired hub host:', settingsPath);
-          } catch (error: unknown) {
-            console.warn('[SETTINGS] Failed to migrate cloud sync hub URL:', settingsPath, error instanceof Error ? error.message : String(error));
           }
         }
       }

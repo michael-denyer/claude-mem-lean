@@ -8,7 +8,6 @@
  *   the live path on a miss or a stale (>24h) file, and never leaks placeholders.
  */
 import { afterAll, afterEach, beforeEach, describe, expect, it, mock } from 'bun:test';
-import { Database } from 'bun:sqlite';
 import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
@@ -32,11 +31,9 @@ import {
 import { emitContextInvalidation } from '../../src/shared/context-invalidation.js';
 import { formatHeaderDateTime } from '../../src/shared/timeline-formatting.js';
 import { describeDuration, recordObserverFailure, recordObserverSuccess } from '../../src/shared/observer-health.js';
-import { writeSyncHealth } from '../../src/shared/sync-health.js';
 import { MEMORY_PLUGIN_INSTRUCTIONS } from '../../src/shared/memory-instructions.js';
 import { ContextCacheService, type ContextVariantRender } from '../../src/services/worker/ContextCacheService.js';
 import { SessionStore } from '../../src/services/sqlite/SessionStore.js';
-import { SyncApply, type SyncOp } from '../../src/services/sync/SyncApply.js';
 import { DataRoutes } from '../../src/services/worker/http/routes/DataRoutes.js';
 
 const realHookSettingsSnapshot = { ...realHookSettings };
@@ -243,28 +240,6 @@ describe('ContextCacheService invalidation', () => {
     store.close();
   });
 
-  it('SyncApply.applyOps', async () => {
-    const db = new Database(':memory:');
-    new SessionStore(db);
-    const apply = new SyncApply(db, { deviceId: 'device-self', now: () => Date.now() });
-    const body = {
-      memory_session_id: 'mem-remote', project: 'remote-proj', text: null, type: 'discovery', title: 'Remote',
-      subtitle: null, facts: '[]', narrative: 'n', concepts: '[]', files_read: '[]', files_modified: '[]',
-      prompt_number: 1, discovery_tokens: 0, content_hash: 'h', generated_by_model: null, agent_type: null,
-      agent_id: null, metadata: null, merged_into_project: null, created_at: new Date().toISOString(),
-      created_at_epoch: Date.now(),
-    };
-    const op: SyncOp = {
-      seq: '1', kind: 'observation', origin_device: 'device-remote', origin_id: '11', rev: '1',
-      body: JSON.stringify(body), server_ts: Date.now(),
-    };
-    // A pulled op can re-key projects (remap mutations), so every variant re-renders.
-    await expectRerenderedOnlyFor(() => {
-      expect(apply.applyOps([op]).applied).toBe(1);
-    }, [project, 'unrelated-proj']);
-    db.close();
-  });
-
   it('DataRoutes observation delete', async () => {
     const store = memoryStore();
     const { observationIds } = store.storeObservations('memory-1', project, [observation], null);
@@ -273,7 +248,7 @@ describe('ContextCacheService invalidation', () => {
     let deleteHandler: ((req: any, res: any) => void) | undefined;
     const routes = new DataRoutes(
       {} as any,
-      { getSessionStore: () => store, getCloudSync: () => null } as any,
+      { getSessionStore: () => store } as any,
       {} as any,
       { broadcast: () => {} } as any,
       {} as any,
@@ -301,7 +276,7 @@ describe('ContextCacheService invalidation', () => {
     let deleteHandler: ((req: any, res: any) => void) | undefined;
     const routes = new DataRoutes(
       {} as any,
-      { getSessionStore: () => store, getCloudSync: () => null } as any,
+      { getSessionStore: () => store } as any,
       {} as any,
       { broadcast: () => {} } as any,
       {} as any,
@@ -333,23 +308,6 @@ describe('ContextCacheService invalidation', () => {
     expect(existsSync(contextCacheFilePath(keys))).toBe(true);
     await waitPastDebounce();
     expect(renders).toEqual([project]);
-  });
-
-  it('a pulled tombstone (SyncApply) removes the cached files synchronously', async () => {
-    const db = new Database(':memory:');
-    new SessionStore(db);
-    const apply = new SyncApply(db, { deviceId: 'device-self', now: () => Date.now() });
-    const tombstone: SyncOp = {
-      seq: '1', kind: 'observation', origin_device: 'device-remote', origin_id: '42', rev: '2',
-      body: '{}', server_ts: Date.now(), entity_id: 'entity-42', entity_rev: '2',
-      operation_sha256: 'a'.repeat(64), deleted: true, deleted_at: new Date().toISOString(),
-    };
-    expect(apply.applyOps([tombstone]).applied).toBe(1);
-    expect(existsSync(contextCacheFilePath(keys))).toBe(false);
-    expect(existsSync(contextCacheFilePath(otherKeys))).toBe(false);
-    await waitPastDebounce();
-    expect(readContextCache(keys, Date.now())?.body).toStartWith('render #');
-    db.close();
   });
 
   it('a render in flight when a removal lands is discarded and re-run', async () => {
@@ -408,13 +366,6 @@ describe('ContextCacheService invalidation', () => {
     expect(existsSync(contextCacheFilePath(otherKeys))).toBe(false);
   });
 
-  it('sync-health writer (banner)', async () => {
-    await expectRerenderedOnlyFor(() => writeSyncHealth({
-      state: 'ok', code: null, message: null, consecutiveFailures: 0, failingSinceAt: null,
-      lastErrorAt: null, lastSuccessAt: Date.now(), updatedAt: Date.now(),
-    }, join(tempDir, 'sync-health.json')), [project, 'unrelated-proj']);
-  });
-
   it('settings change', async () => {
     // SettingsRoutes.handleUpdateSettings emits exactly this after persisting.
     await expectRerenderedOnlyFor(() => emitContextInvalidation('all', 'settings'), [project, 'unrelated-proj']);
@@ -452,59 +403,6 @@ describe('ContextCacheService invalidation', () => {
     expect(renders).toContain('unrelated-proj');
     expect(readContextCache(keys, Date.now())?.body).toBe('boot render');
     booted.stop();
-  });
-});
-
-describe('ContextCacheService with cloud sync (servable only while Realtime is live)', () => {
-  const keys = contextCacheKeys(['servable-proj'], 'claude', false);
-  let renders: number;
-
-  function syncedService(): ContextCacheService {
-    renders = 0;
-    return new ContextCacheService({
-      debounceMs: 10,
-      initiallyServable: false,
-      renderVariant: async () => {
-        renders++;
-        return { body: `synced render #${renders}`, cacheable: true };
-      },
-      expandProjectReadKeys: projects => projects,
-    });
-  }
-
-  afterEach(() => rmSync(contextCacheFilePath(keys), { force: true }));
-
-  it('writes no file while Realtime has not joined; the hook takes the live (pulling) path', async () => {
-    writeContextCache(keys, 'left by a previous worker', Date.now());
-    const service = syncedService();
-    service.recordLiveRender(keys, { body: 'live', cacheable: true }, Date.now());
-    service.stop();
-    const booted = syncedService();
-    booted.start();
-    // A previous worker's file may predate remote ops: gone before any render.
-    expect(existsSync(contextCacheFilePath(keys))).toBe(false);
-    booted.recordLiveRender(keys, { body: 'live', cacheable: true }, Date.now());
-    await booted.flushPendingRenders();
-    expect(existsSync(contextCacheFilePath(keys))).toBe(false);
-    booted.stop();
-  });
-
-  it('re-renders every variant when Realtime joins, and removes the files when it drops', async () => {
-    const service = syncedService();
-    service.start();
-    service.recordLiveRender(keys, { body: 'live', cacheable: true }, Date.now());
-    expect(existsSync(contextCacheFilePath(keys))).toBe(false);
-
-    service.setServable(true);
-    await new Promise(resolve => setTimeout(resolve, 40));
-    await service.flushPendingRenders();
-    expect(readContextCache(keys, Date.now())?.body).toStartWith('synced render #');
-
-    service.setServable(false);
-    expect(existsSync(contextCacheFilePath(keys))).toBe(false);
-    service.recordLiveRender(keys, { body: 'live again', cacheable: true }, Date.now());
-    expect(existsSync(contextCacheFilePath(keys))).toBe(false);
-    service.stop();
   });
 });
 

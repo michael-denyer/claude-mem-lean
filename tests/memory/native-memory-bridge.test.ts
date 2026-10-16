@@ -58,7 +58,7 @@ describe('memory folder watcher', () => {
     const previousDedup = process.env.CLAUDE_MEM_DEDUP_ENABLED;
     process.env.CLAUDE_MEM_DEDUP_ENABLED = 'true';
     const store = new SessionStore(':memory:');
-    const manager = { getConnection: () => store.db, getSessionStore: () => store, getCloudSync: () => null, getChromaSync: () => null };
+    const manager = { getConnection: () => store.db, getSessionStore: () => store, getChromaSync: () => null };
     const create = () => new MemoryFileWatcher([{ path: root, project: 'snapshot-project' }], note => saveMemory(manager as any, 'fallback', note), 10);
     try {
       const watcher = create();
@@ -139,7 +139,7 @@ describe('memory folder watcher', () => {
         const result = db.query('INSERT INTO observations (title, project, metadata) VALUES (?, ?, ?)').run(observation.title, project, observation.metadata);
         return { id: Number(result.lastInsertRowid), createdAtEpoch: 0 };
       } }),
-      getCloudSync: () => null, getChromaSync: () => null,
+      getChromaSync: () => null,
     };
     const run = (project: string) => {
       const watcher = new MemoryFileWatcher([{ path: root, project }], note => saveMemory(manager as any, 'fallback', note), 10);
@@ -150,16 +150,14 @@ describe('memory folder watcher', () => {
     db.close();
   });
 
-  it('keeps an existing deduplicated observation vector unchanged while nudging cloud sync', () => {
-    let indexed = 0, nudged = 0;
+  it('keeps an existing deduplicated observation vector unchanged', () => {
+    let indexed = 0;
     const manager = {
       getSessionStore: () => ({ getOrCreateManualSession: () => 'manual', storeObservation: () => ({id: 7, createdAtEpoch: 0, mergedIntoExisting: true}) }),
-      getCloudSync: () => ({notify: () => { nudged++; }}),
       getChromaSync: () => ({ syncObservation: () => { indexed++; return Promise.resolve(); } }),
     };
     expect(saveMemory(manager as any, 'p', { text: 'proposed duplicate' }).message).toContain('matches existing');
     expect(indexed).toBe(0);
-    expect(nudged).toBe(1);
   });
 
   it('deduplicates the same file fingerprint across concurrent processes', async () => {
@@ -172,7 +170,7 @@ describe('memory folder watcher', () => {
     writeFileSync(worker, `import {Database} from 'bun:sqlite';
 import {saveMemory} from ${JSON.stringify(module)};
 const db = new Database(${JSON.stringify(database)}); db.exec('PRAGMA busy_timeout=5000');
-const manager = {getConnection:()=>db,getSessionStore:()=>({getOrCreateManualSession:()=> 'manual',storeObservation:(_s,p,o)=>{const r=db.query('INSERT INTO observations (title, project, metadata) VALUES (?,?,?)').run(o.title,p,o.metadata);return {id:Number(r.lastInsertRowid),createdAtEpoch:0};}}),getCloudSync:()=>null,getChromaSync:()=>null};
+const manager = {getConnection:()=>db,getSessionStore:()=>({getOrCreateManualSession:()=> 'manual',storeObservation:(_s,p,o)=>{const r=db.query('INSERT INTO observations (title, project, metadata) VALUES (?,?,?)').run(o.title,p,o.metadata);return {id:Number(r.lastInsertRowid),createdAtEpoch:0};}}),getChromaSync:()=>null};
 saveMemory(manager,'p',{text:'note',metadata:{sourceFingerprint:'shared-race-fingerprint'}}); db.close();`);
     const children = Array.from({length: 4}, () => Bun.spawn([process.execPath, worker], { stdout: 'pipe', stderr: 'pipe' }));
     expect(await Promise.all(children.map(child => child.exited))).toEqual([0, 0, 0, 0]);

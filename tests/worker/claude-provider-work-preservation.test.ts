@@ -241,7 +241,6 @@ function createHarness(backlog: number) {
       linkToolUsesToObservation: () => 0,
     }),
     getChromaSync: () => null,
-    getCloudSync: () => null,
   };
   const sessionManager = new SessionManager(dbManager as never);
   const session = createSession();
@@ -616,7 +615,6 @@ describe('work preservation — ordering and durable state', () => {
         getSessionById: () => store.getSessionById(sessionDbId),
         getSessionStore: () => store,
         getChromaSync: () => null,
-        getCloudSync: () => null,
       };
       const sessionManager = new SessionManager(dbManager as never);
       const session = createSession(sessionDbId);
@@ -709,7 +707,6 @@ describe('work preservation — a generator that throws, seen from the runner', 
         linkToolUsesToObservation: () => 0,
       }),
       getChromaSync: () => null,
-      getCloudSync: () => null,
     };
     const sessionManager = new SessionManager(dbManager as never);
     const session = sessionManager.initializeSession(sessionDbId, 'work through the backlog', 1);

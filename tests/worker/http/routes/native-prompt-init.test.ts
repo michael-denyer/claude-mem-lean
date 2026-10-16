@@ -10,7 +10,7 @@ import { setIngestContext } from '../../../../src/services/worker/http/shared.js
 
 async function createRealSessionFixture() {
   const dir = mkdtempSync(join(tmpdir(), 'cmem-native-http-'));
-  const store = new SessionStore(join(dir, 'sessions.sqlite'), { syncOpsEnabled: false });
+  const store = new SessionStore(join(dir, 'sessions.sqlite'));
   const dbManager = {
     getSessionStore: () => store,
     getSessionById: (id: number) => {
@@ -18,7 +18,6 @@ async function createRealSessionFixture() {
       if (!row) throw new Error('Fixture session missing');
       return row;
     },
-    getCloudSync: () => undefined,
     getChromaSync: () => undefined,
   };
   const manager = new SessionManager(dbManager as any);
@@ -68,7 +67,7 @@ async function createRealSessionFixture() {
 
 describe('native prompt init HTTP contract', () => {
   it('acknowledges native retries, preserves repeated equal turns, and validates IDs and conflicting bodies', async () => {
-    const store = new SessionStore(':memory:', { syncOpsEnabled: false });
+    const store = new SessionStore(':memory:');
     const active = new Map<number, any>();
     const manager = {
       getSession: (id: number) => active.get(id),
@@ -80,7 +79,7 @@ describe('native prompt init HTTP contract', () => {
       getMessageBuffer: () => ({ getPendingCount: () => 0 }),
     };
     const routes = new SessionRoutes(manager as any,
-      { getSessionStore: () => store, getCloudSync: () => undefined, getChromaSync: () => undefined } as any,
+      { getSessionStore: () => store, getChromaSync: () => undefined } as any,
       {} as any, {} as any, {} as any, { broadcastNewPrompt() {}, broadcastSessionStarted() {} } as any,
       {} as any, {} as any);
     const app = express(); app.use(express.json({ limit: '1mb' })); routes.setupRoutes(app);
@@ -131,7 +130,7 @@ describe('native prompt init HTTP contract', () => {
   });
 
   it('broadcasts and vector-syncs each turn\'s own prompt when two native turns are saved in the same millisecond', async () => {
-    const store = new SessionStore(':memory:', { syncOpsEnabled: false });
+    const store = new SessionStore(':memory:');
     const active = new Map<number, any>();
     const manager = {
       getSession: (id: number) => active.get(id),
@@ -145,7 +144,7 @@ describe('native prompt init HTTP contract', () => {
     const broadcast: { id: number; prompt_text: string }[] = [];
     const synced: { id: number; text: string }[] = [];
     const routes = new SessionRoutes(manager as any, {
-      getSessionStore: () => store, getCloudSync: () => undefined,
+      getSessionStore: () => store,
       getChromaSync: () => ({ syncUserPrompt: async (id: number, _memorySessionId: unknown, _project: unknown, text: string) => { synced.push({ id, text }); } }),
     } as any, {} as any, {} as any, {} as any, {
       broadcastNewPrompt(prompt: { id: number; prompt_text: string }) { broadcast.push({ id: prompt.id, prompt_text: prompt.prompt_text }); },

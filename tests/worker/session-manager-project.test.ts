@@ -74,7 +74,6 @@ function makeDbManager(storeObservations = mock(() => ({
       storeObservations,
     }),
     getChromaSync: () => ({ syncObservation: mock(() => Promise.resolve()) }),
-    getCloudSync: () => null,
   } as unknown as DatabaseManager;
 }
 

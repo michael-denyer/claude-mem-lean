@@ -53,7 +53,7 @@ try {
   const { SessionManager } = await import('../../../src/services/worker/SessionManager.ts');
   const { ingestObservation, setIngestContext } = await import('../../../src/services/worker/http/shared.ts');
   const store = new SessionStore(':memory:');
-  const db: any = { getSessionStore: () => store, getSessionById: (id: number) => store.getSessionById(id), getChromaSync: () => null, getCloudSync: () => null };
+  const db: any = { getSessionStore: () => store, getSessionById: (id: number) => store.getSessionById(id), getChromaSync: () => null };
   const manager = new SessionManager(db);
   setIngestContext({ dbManager: db, sessionManager: manager, eventBroadcaster: { broadcastObservationQueued() {} } as any, ensureGeneratorRunning: async () => {} });
   try {

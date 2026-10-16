@@ -14,8 +14,8 @@ const CONFIRM_LABELS: Record<DeletableItemType, string> = {
 
 /**
  * Trash-icon button that deletes a feed item after a confirmation prompt. A
- * refused delete (synced from another device, cloud sync unavailable, worker
- * down) is shown inline next to the button instead of failing silently.
+ * refused delete (synced from another device, worker down) is shown inline
+ * next to the button instead of failing silently.
  */
 export function DeleteButton({ itemType, id, onDeleted }: DeleteButtonProps) {
   const [isDeleting, setIsDeleting] = useState(false);

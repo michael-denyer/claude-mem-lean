@@ -49,7 +49,7 @@ describe('built local MCP progressive stdio integration', () => {
     app.use(express.json());
     app.get('/api/health', (_req, res) => res.json({ status: 'ok', version: '13.34.2' }));
     new SearchRoutes(manager).setupRoutes(app);
-    const databaseManager = { getSessionStore: () => store, getChromaSync: () => null, getCloudSync: () => null } as unknown as DatabaseManager;
+    const databaseManager = { getSessionStore: () => store, getChromaSync: () => null } as unknown as DatabaseManager;
     new MemoryRoutes(databaseManager, project).setupRoutes(app);
     new WorkStateRoutes(databaseManager).setupRoutes(app);
     app.post('/api/observations/batch', (req, res) => res.json(store.getObservationsByIds(req.body.ids)));

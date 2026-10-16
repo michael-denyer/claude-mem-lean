@@ -8,7 +8,7 @@ import type { ChromaSync } from '../../../src/services/sync/ChromaSync.js';
 
 for (const filter of ['concepts', 'files'] as const) {
   it(`retains semantic ${filter} matches beside legacy imported metadata`, async () => {
-    const store = new SessionStore(':memory:', { syncOpsEnabled: false });
+    const store = new SessionStore(':memory:');
     try {
       const sid = store.createSDKSession('legacy-search', 'project', 'fixture');
       store.ensureMemorySessionIdRegistered(sid, 'legacy-memory');

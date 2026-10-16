@@ -178,7 +178,7 @@ Writes from this host stamp `platformSource=grok-bot`. When reading, do not drop
 ### Nothing is being stored
 
 - Confirm the worker is up and you did **not** restart a healthy one.
-- CMEM Pro: check `/api/health` (provider openrouter) and `/api/sync/status`. See [CMEM Pro (manual / headless)](/cmem-pro-headless).
+- CMEM Pro: check `/api/health` (provider openrouter). See [CMEM Pro (manual / headless)](/cmem-pro-headless).
 - Host observer: confirm the reply is XML (`skip_summary` or `observation`), and the shim is not on the worker port (macOS: worker 37777 → shim 37778).
 
 ### `npx claude-mem install --ide grok-bot` is rejected

@@ -43,7 +43,6 @@ function persistMemory(dbManager: DatabaseManager, defaultProject: string, input
   };
   const result = store.storeObservation(sessionId, project, observation, 0, 0);
   logger.info('HTTP', 'Manual observation saved', { id: result.id, project, title: observation.title });
-  dbManager.getCloudSync()?.notify();
   notifyGrokBotIndex();
   // A merged row keeps its original text and vector; never index the proposed
   // replacement content under the existing id.

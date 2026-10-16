@@ -31,7 +31,7 @@ describe('response metadata uses the registered memory identity', () => {
         };
         const dbManager = {
           getSessionById: (id: number) => store.getSessionById(id),
-          getSessionStore: () => store, getChromaSync: () => chroma, getCloudSync: () => null,
+          getSessionStore: () => store, getChromaSync: () => chroma,
         } as unknown as DatabaseManager;
         const manager = new SessionManager(dbManager);
         const sid = store.createSDKSession('registered-content', 'registered-project', 'Capture a second turn');
@@ -94,7 +94,7 @@ describe('response metadata uses the registered memory identity', () => {
       const store = new SessionStore(':memory:');
       cleanup.push(() => store.close());
       const db = { getSessionStore: () => store, getSessionById: (id: number) => store.getSessionById(id),
-        getChromaSync: () => null, getCloudSync: () => null } as unknown as DatabaseManager;
+        getChromaSync: () => null } as unknown as DatabaseManager;
       const manager = new SessionManager(db);
       const sid = store.createSDKSession('provider-change-content', 'owned-project', 'Read file');
       store.ensureMemorySessionIdRegistered(sid, 'old-sdk-memory');

@@ -18,7 +18,7 @@ async function withFeed(store: SessionStore, check: (url: string) => Promise<voi
 }
 
 it('pages newest feed rows first when capture timestamps tie', async () => {
-  const store = new SessionStore(':memory:', { syncOpsEnabled: false });
+  const store = new SessionStore(':memory:');
   try {
     const sid = store.createSDKSession('tied-feed', 'project', 'fixture');
     store.ensureMemorySessionIdRegistered(sid, 'tied-memory');
