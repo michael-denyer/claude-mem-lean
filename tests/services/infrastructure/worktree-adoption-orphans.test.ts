@@ -421,10 +421,7 @@ describe('orphaned worktree adoption (#2864)', () => {
     }
   }, 30_000);
 
-  // #2827 — rows synced from another device carry no local checkout. That device
-  // adopts its own orphans and the remap syncs here; adopting them locally could
-  // fold another device's slug-named repository into a same-named folder.
-  it('leaves a key holding only rows synced from another device to that device', async () => {
+  it('adopts a legacy orphan written before checkouts were recorded', async () => {
     tempRoot = mkdtempSync(path.join(tmpdir(), 'claude-mem-2827-orphan-'));
     const mainRepo = path.join(tempRoot, 'acme');
     const dataDirectory = path.join(tempRoot, 'data');
@@ -433,12 +430,6 @@ describe('orphaned worktree adoption (#2864)', () => {
 
     const dbPath = path.join(dataDirectory, 'claude-mem.db');
     const store = new SessionStore(dbPath);
-    seedSession(store, 'content-replica', 'acme/web', 'memory-replica');
-    const replicaObsId = seedObservation(store, 'memory-replica', 'acme/web');
-    store.db
-      .prepare("UPDATE observations SET origin_device_id = 'other-device', origin_local_id = ? WHERE id = ?")
-      .run(String(replicaObsId), replicaObsId);
-    // A legacy orphan this device wrote before checkouts were recorded is still adopted.
     seedSession(store, 'content-legacy', 'acme/old-wt', 'memory-legacy');
     const legacyObsId = seedObservation(store, 'memory-legacy', 'acme/old-wt');
     store.close();
@@ -446,7 +437,6 @@ describe('orphaned worktree adoption (#2864)', () => {
     const result = await adoptMergedWorktrees({ repoPath: mainRepo, dataDirectory });
 
     expect(result.orphanedWorktrees).toEqual(['acme/old-wt']);
-    expect(mergedInto(dbPath, replicaObsId)).toBeNull();
     expect(mergedInto(dbPath, legacyObsId)).toBe('acme');
   }, 30_000);
 

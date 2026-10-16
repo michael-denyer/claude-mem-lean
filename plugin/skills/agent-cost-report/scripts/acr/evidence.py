@@ -67,6 +67,12 @@ def load_sessions(db, scope):
     return sess
 
 
+def origin_device_col(db, table):
+    """origin_device_id when the table still has it; claude-mem schema v66 dropped it, so every row is this device."""
+    has = any(r[1] == "origin_device_id" for r in db.execute(f"pragma table_info({table})"))
+    return "origin_device_id" if has else "NULL as origin_device_id"
+
+
 def _rows(db, table, cols, scope, id_col, ids):
     """Window-bounded (period/project) or id-bounded (session) rows of one table, streamed."""
     c = ", ".join(cols)
@@ -107,7 +113,7 @@ def load_evidence(db, scope, sess, observer_rate):
 
     # observer (note-taker) cost only: discovery_tokens are the observer model's own tokens, deduped below, never agent cost
     for o in _rows(db, "observations", ("id", "memory_session_id", "project", "type", "title", "discovery_tokens",   # observer tokens
-                                        "created_at_epoch", "generated_by_model", "origin_device_id"), scope, "memory_session_id", mids or ()):
+                                        "created_at_epoch", "generated_by_model", origin_device_col(db, "observations")), scope, "memory_session_id", mids or ()):
         m = o["memory_session_id"]
         if not in_scope(m): continue
         counts["observations"] += 1; e = ev[m]
@@ -125,7 +131,7 @@ def load_evidence(db, scope, sess, observer_rate):
         dev(m, o["origin_device_id"], o["created_at_epoch"])
     # observer tokens on summaries (note-taker), same dedup rule
     for s_ in _rows(db, "session_summaries", ("id", "memory_session_id", "request", "completed", "discovery_tokens",   # observer tokens
-                                             "created_at_epoch", "origin_device_id"), scope, "memory_session_id", mids or ()):
+                                             "created_at_epoch", origin_device_col(db, "session_summaries")), scope, "memory_session_id", mids or ()):
         m = s_["memory_session_id"]
         if not in_scope(m): continue
         counts["summaries"] += 1; e = ev[m]
@@ -136,7 +142,7 @@ def load_evidence(db, scope, sess, observer_rate):
         e["text"].append((s_["request"] or "") + " " + (s_["completed"] or ""))
         dev(m, s_["origin_device_id"], s_["created_at_epoch"])
     for p in _rows(db, "user_prompts", ("content_session_id", f"substr(prompt_text,1,{PROMPT_CHARS}) as prompt_text",
-                                        "created_at_epoch", "origin_device_id"), scope, "content_session_id", csids or ()):
+                                        "created_at_epoch", origin_device_col(db, "user_prompts")), scope, "content_session_id", csids or ()):
         m = bycs.get(p["content_session_id"])
         if not in_scope(m): continue
         counts["prompts"] += 1

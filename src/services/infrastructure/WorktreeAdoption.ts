@@ -244,7 +244,7 @@ function listOrphanProjectKeys(
   const upperBound = `${parentProject}0`;
   // Mirrors selectObsForPatch: already-adopted rows stay eligible so a Chroma
   // patch that failed after the SQL commit can retry. The update itself is a
-  // no-op for them, so re-runs neither double-count nor bump sync revs.
+  // no-op for them, so re-runs do not double-count.
   const adoptedClause = includeAlreadyAdopted
     ? 'AND (merged_into_project IS NULL OR merged_into_project = ?)'
     : 'AND merged_into_project IS NULL';
@@ -277,17 +277,11 @@ interface WriterEvidence {
   sessionCwd: boolean;
   /** sdk_sessions.project_key_source (v59). */
   sessionKeySource: boolean;
-  /** origin_device_id on observations and session_summaries (cloud sync). */
-  originDevice: boolean;
   /** When this database began recording checkouts (v53 applied), epoch ms; null if it never has. */
   checkoutsRecordedSinceEpoch: number | null;
 }
 
-function readWriterEvidence(
-  db: import('bun:sqlite').Database,
-  obsColumns: Array<{ name: string }>,
-  sumColumns: Array<{ name: string }>
-): WriterEvidence {
+function readWriterEvidence(db: import('bun:sqlite').Database): WriterEvidence {
   const sessionColumns = db.prepare('PRAGMA table_info(sdk_sessions)').all() as Array<{ name: string }>;
   const checkoutsRecorded = db.prepare(
     'SELECT applied_at FROM schema_versions WHERE version = 53'
@@ -296,8 +290,6 @@ function readWriterEvidence(
   return {
     sessionCwd: sessionColumns.some(c => c.name === 'cwd'),
     sessionKeySource: sessionColumns.some(c => c.name === 'project_key_source'),
-    originDevice: obsColumns.some(c => c.name === 'origin_device_id')
-      && sumColumns.some(c => c.name === 'origin_device_id'),
     checkoutsRecordedSinceEpoch: Number.isFinite(checkoutsRecordedSinceEpoch) ? checkoutsRecordedSinceEpoch : null,
   };
 }
@@ -309,7 +301,7 @@ function readWriterEvidence(
  * `org/repo` slug (#2827), and an environment (#2737) by any name the user
  * picks; either can look exactly like `<parent>/<worktree>` under a repository
  * whose folder has the right name, and adopting it would fold another
- * repository's memory into this one (and sync that to every device).
+ * repository's memory into this one.
  *
  * - Keys whose sessions recorded their checkout (sdk_sessions.cwd): every
  *   recorded checkout that still exists must still resolve into this
@@ -322,10 +314,8 @@ function readWriterEvidence(
  *   from the folder-only naming that predates slugs and environments.
  * - Keys with nothing recorded: sessions record their checkout since v53, so
  *   only rows older than that are attributable, and those predate slug and
- *   environment naming. They must also be rows this device wrote: a replica's
- *   rows are adopted by the device that wrote them, and that remap reaches this
- *   one through sync. Newer rows without a recorded checkout (an import, say)
- *   have an unknown writer and stay where they are.
+ *   environment naming. Newer rows without a recorded checkout (an import,
+ *   say) have an unknown writer and stay where they are.
  */
 function wasWrittenUnderRepository(
   db: import('bun:sqlite').Database,
@@ -351,9 +341,6 @@ function wasWrittenUnderRepository(
 
   const conditions = ['project = ?'];
   const params: Array<string | number> = [candidateKey];
-  if (evidence.originDevice) {
-    conditions.push('origin_device_id IS NULL');
-  }
   if (evidence.checkoutsRecordedSinceEpoch !== null) {
     conditions.push('created_at_epoch < ?');
     params.push(evidence.checkoutsRecordedSinceEpoch);
@@ -501,7 +488,7 @@ export async function adoptMergedWorktrees(opts: {
       );
       return result;
     }
-    const writerEvidence = readWriterEvidence(db, obsColumns, sumColumns);
+    const writerEvidence = readWriterEvidence(db);
 
     const selectObsForPatch = db.prepare(
       `SELECT id FROM observations

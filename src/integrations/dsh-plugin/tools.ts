@@ -55,10 +55,6 @@ interface FullItem extends IndexItem {
   mergedIntoProject?: string
   agentType?: string
   agentId?: string
-  syncedAt?: number
-  originDeviceId?: string
-  originLocalId?: string
-  syncRev?: string
 }
 
 interface QueryOutput {
@@ -110,10 +106,6 @@ function projectFullItem(item: MemObservation): FullItem {
   if (item.mergedIntoProject !== undefined) full.mergedIntoProject = item.mergedIntoProject
   if (item.agentType !== undefined) full.agentType = item.agentType
   if (item.agentId !== undefined) full.agentId = item.agentId
-  if (item.syncedAt !== undefined) full.syncedAt = item.syncedAt
-  if (item.originDeviceId !== undefined) full.originDeviceId = item.originDeviceId
-  if (item.originLocalId !== undefined) full.originLocalId = item.originLocalId
-  if (item.syncRev !== undefined) full.syncRev = item.syncRev
   return full
 }
 
@@ -271,10 +263,6 @@ function applyGetObservationsTool(ctx: Context, worker: WorkerClient, timeoutMs:
               mergedIntoProject: { type: 'string' },
               agentType: { type: 'string' },
               agentId: { type: 'string' },
-              syncedAt: { type: 'number' },
-              originDeviceId: { type: 'string' },
-              originLocalId: { type: 'string' },
-              syncRev: { type: 'string' },
             },
           } },
           content: { type: 'string' },
@@ -423,8 +411,6 @@ export function formatFullOutput(value: FullQueryOutput): string {
       if (item.filesModified !== undefined && item.filesModified.length > 0) lines.push(`filesModified: ${JSON.stringify(item.filesModified)}`)
       if (item.metadata !== undefined && Object.keys(item.metadata).length > 0) lines.push(`metadata: ${JSON.stringify(item.metadata)}`)
       if (item.contentHash !== undefined) lines.push(`contentHash: ${item.contentHash}`)
-      if (item.originDeviceId !== undefined) lines.push(`originDeviceId: ${item.originDeviceId}`)
-      if (item.originLocalId !== undefined) lines.push(`originLocalId: ${item.originLocalId}`)
       return lines.join('\n')
     })
     .join('\n\n')

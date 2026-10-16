@@ -15,10 +15,7 @@
 // same semantics as an epoch-keyed row while leaving one row per pair instead
 // of one row per observation.
 //
-// Rows are device-local scratch state. Sync enumerates the tables it pushes
-// explicitly (observations, session_summaries, user_prompts — see
-// SessionStore.initializeSyncHubLaunchBaseline), so a table it does not name is
-// never drained: a gate row never leaves the box.
+// Rows are device-local scratch state.
 import { Database } from 'bun:sqlite';
 import { mkdirSync } from 'fs';
 import { dirname } from 'path';

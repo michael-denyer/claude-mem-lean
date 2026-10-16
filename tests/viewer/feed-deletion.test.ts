@@ -24,9 +24,9 @@ describe('viewer delete flow', () => {
     ]);
   });
 
-  it('explains a 404: synced from another device, or already gone', async () => {
+  it('explains a 404: already gone', async () => {
     const fetchImpl = (async () => new Response('{"error":"observation #42 not found"}', { status: 404 })) as typeof fetch;
-    await expect(deleteFeedItem('observation', 42, fetchImpl)).rejects.toThrow('synced from another device');
+    await expect(deleteFeedItem('observation', 42, fetchImpl)).rejects.toThrow('already gone');
   });
 
   it('explains an unreachable worker instead of surfacing a raw fetch error', async () => {
