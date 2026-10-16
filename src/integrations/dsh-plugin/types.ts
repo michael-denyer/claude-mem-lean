@@ -50,10 +50,6 @@ export interface MemObservation {
   readonly mergedIntoProject?: string
   readonly agentType?: string
   readonly agentId?: string
-  readonly syncedAt?: number
-  readonly originDeviceId?: string
-  readonly originLocalId?: string
-  readonly syncRev?: string
 }
 
 /** Free-text search query with optional filters. `platformSource` is an optional signal, never an enforced restriction. */

@@ -21,8 +21,10 @@ import { getObservationsByFilePath } from '../../../sqlite/observations/get.js';
 import { getFirstObservationCreatedAt } from '../../../sqlite/observations/recent.js';
 import { getParkedSlotWaiterCount } from '../../../../supervisor/process-registry.js';
 import { getUptimeSeconds } from '../../../../shared/uptime.js';
-import { assertCanonicalDecimal, type ContentKind } from '../../../sync/CanonicalContent.js';
 import { emitContextInvalidation } from '../../../../shared/context-invalidation.js';
+
+type ContentKind = 'observation' | 'summary' | 'prompt';
+type ContentTable = 'observations' | 'session_summaries' | 'user_prompts';
 
 const integerArrayLike = z.preprocess((value) => {
   if (Array.isArray(value)) return value;
@@ -413,58 +415,51 @@ export class DataRoutes extends BaseRouteHandler {
   });
 
   private handleDeleteObservation = this.wrapHandler((req: Request, res: Response): void => {
-    this.deleteSyncedContent(req, res, 'observation', 'observations');
+    this.deleteContent(req, res, 'observation', 'observations');
   });
 
   private handleDeleteSummary = this.wrapHandler((req: Request, res: Response): void => {
-    this.deleteSyncedContent(req, res, 'summary', 'session_summaries');
+    this.deleteContent(req, res, 'summary', 'session_summaries');
   });
 
   private handleDeletePrompt = this.wrapHandler((req: Request, res: Response): void => {
-    this.deleteSyncedContent(req, res, 'prompt', 'user_prompts');
+    this.deleteContent(req, res, 'prompt', 'user_prompts');
   });
 
   private deleteRow(
     store: ReturnType<DatabaseManager['getSessionStore']>,
-    table: 'observations' | 'session_summaries' | 'user_prompts',
-    originLocalId: string,
+    table: ContentTable,
+    id: string,
   ): void {
-    store.db.prepare(
-      `DELETE FROM ${table} WHERE id = ? AND origin_device_id IS NULL`
-    ).run(originLocalId);
+    store.db.prepare(`DELETE FROM ${table} WHERE id = ?`).run(id);
   }
 
   /** Production deletion surface: row delete for a single content row. */
-  private deleteSyncedContent(
+  private deleteContent(
     req: Request,
     res: Response,
     kind: ContentKind,
-    table: 'observations' | 'session_summaries' | 'user_prompts',
+    table: ContentTable,
   ): void {
-    let originLocalId: string;
-    try {
-      originLocalId = assertCanonicalDecimal(req.params.id, { positive: true });
-    } catch {
-      this.badRequest(res, 'id must be a positive canonical decimal string');
+    const id = req.params.id;
+    if (typeof id !== 'string' || !/^[1-9][0-9]*$/.test(id) || !Number.isSafeInteger(Number(id))) {
+      this.badRequest(res, 'id must be a positive integer');
       return;
     }
 
     const store = this.dbManager.getSessionStore();
-    const row = store.db.prepare(`
-      SELECT CAST(id AS TEXT) AS id FROM ${table}
-      WHERE id = ? AND origin_device_id IS NULL
-    `).get(originLocalId) as { id: string } | undefined;
+    const row = store.db.prepare(`SELECT 1 AS found FROM ${table} WHERE id = ?`).get(id);
     if (!row) {
-      this.notFound(res, `${kind} #${originLocalId} not found`);
+      this.notFound(res, `${kind} #${id} not found`);
       return;
     }
 
-    this.deleteRow(store, table, originLocalId);
+    this.deleteRow(store, table, id);
     emitContextInvalidation('all', `delete-${kind}`, 'removal');
 
     // Only after the delete committed: open viewer tabs drop the row live.
-    this.sseBroadcaster.broadcast({ type: 'item_deleted', itemType: kind, id: Number(originLocalId) });
-    res.json({ success: true, id: originLocalId, kind });
+    this.sseBroadcaster.broadcast({ type: 'item_deleted', itemType: kind, id: Number(id) });
+    res.json({ success: true, id, kind });
   }
 
   private handleGetStats = this.wrapHandler((req: Request, res: Response): void => {
@@ -543,8 +538,7 @@ export class DataRoutes extends BaseRouteHandler {
   /**
    * Delete one session and everything captured in it. A session is identified
    * by (platform_source, content_session_id): the same content id can exist
-   * under two hosts. The session row is removed only after its local children
-   * are gone, so the FK cascade never drops a row synced from another device.
+   * under two hosts.
    */
   private handleDeleteSession = this.wrapHandler((req: Request, res: Response): void => {
     const rawPlatformSource = this.toStringParam(req.params.platformSource);
@@ -574,39 +568,23 @@ export class DataRoutes extends BaseRouteHandler {
       return;
     }
 
-    // Rows synced from another device belong to that device: the FK cascade
-    // would drop them here without a tombstone. Refuse instead.
-    const remoteChildren = store.db.prepare(`
-      SELECT
-        (SELECT COUNT(*) FROM observations WHERE memory_session_id = ? AND origin_device_id IS NOT NULL)
-        + (SELECT COUNT(*) FROM session_summaries WHERE memory_session_id = ? AND origin_device_id IS NOT NULL)
-        + (SELECT COUNT(*) FROM user_prompts WHERE session_db_id = ? AND origin_device_id IS NOT NULL) AS n
-    `).get(sessionRow.memory_session_id, sessionRow.memory_session_id, sessionRow.id) as { n: number };
-    if (remoteChildren.n > 0) {
-      res.status(409).json({
-        error: 'session holds memories synced from another device; delete those on that device first',
-        remoteItemCount: remoteChildren.n,
-      });
-      return;
-    }
-
-    type ChildRow = { kind: ContentKind; table: 'observations' | 'session_summaries' | 'user_prompts'; id: string };
+    type ChildRow = { kind: ContentKind; table: ContentTable; id: string };
     const childRows: ChildRow[] = [];
 
     if (sessionRow.memory_session_id) {
       const observations = store.db.prepare(
-        `SELECT CAST(id AS TEXT) AS id FROM observations WHERE memory_session_id = ? AND origin_device_id IS NULL`
+        `SELECT CAST(id AS TEXT) AS id FROM observations WHERE memory_session_id = ?`
       ).all(sessionRow.memory_session_id) as Array<{ id: string }>;
       childRows.push(...observations.map(row => ({ kind: 'observation' as ContentKind, table: 'observations' as const, id: row.id })));
 
       const summaries = store.db.prepare(
-        `SELECT CAST(id AS TEXT) AS id FROM session_summaries WHERE memory_session_id = ? AND origin_device_id IS NULL`
+        `SELECT CAST(id AS TEXT) AS id FROM session_summaries WHERE memory_session_id = ?`
       ).all(sessionRow.memory_session_id) as Array<{ id: string }>;
       childRows.push(...summaries.map(row => ({ kind: 'summary' as ContentKind, table: 'session_summaries' as const, id: row.id })));
     }
 
     const prompts = store.db.prepare(
-      `SELECT CAST(id AS TEXT) AS id FROM user_prompts WHERE session_db_id = ? AND origin_device_id IS NULL`
+      `SELECT CAST(id AS TEXT) AS id FROM user_prompts WHERE session_db_id = ?`
     ).all(sessionRow.id) as Array<{ id: string }>;
     childRows.push(...prompts.map(row => ({ kind: 'prompt' as ContentKind, table: 'user_prompts' as const, id: row.id })));
 
@@ -620,8 +598,7 @@ export class DataRoutes extends BaseRouteHandler {
         else if (row.kind === 'summary') deletedCounts.summaries++;
         else deletedCounts.prompts++;
       }
-      // The raw tool I/O backup is device-local (never synced); a deleted
-      // session must not leave its captured tool inputs and outputs behind.
+      // A deleted session must not leave its captured tool inputs and outputs behind.
       deletedCounts.toolUses = store.db.prepare(
         `DELETE FROM tool_uses WHERE session_db_id = ? OR (content_session_id = ? AND platform_source = ?)`
       ).run(sessionRow.id, contentSessionId, platformSource).changes;
@@ -660,8 +637,8 @@ export class DataRoutes extends BaseRouteHandler {
   /**
    * `claude-mem project merge <from> <into>` runs here so its Chroma patch can
    * land: this process holds the Chroma writer lock, and a merge run in the CLI
-   * process was refused by it (gate P2-4). The merge re-keys memory on every
-   * synced device, so other localhost pages may not trigger it.
+   * process was refused by it (gate P2-4). The merge re-keys memory, so other
+   * localhost pages may not trigger it.
    */
   private handleProjectMerge = this.wrapHandler(async (req: Request, res: Response): Promise<void> => {
     if (isForeignLoopbackBrowserWrite(req)) {

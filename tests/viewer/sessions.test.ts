@@ -80,7 +80,7 @@ describe('deleting a session from the viewer', () => {
 
   it('explains each refusal', async () => {
     const refuse = (status: number) => (async () => new Response('{}', { status })) as typeof fetch;
-    await expect(deleteSession(claudeRef, refuse(409))).rejects.toThrow('synced from another device');
+    await expect(deleteSession(claudeRef, refuse(409))).rejects.toThrow('still running');
     await expect(deleteSession(claudeRef, refuse(404))).rejects.toThrow('already gone');
     await expect(deleteSession(claudeRef, (async () => { throw new TypeError('Failed to fetch'); }) as typeof fetch))
       .rejects.toThrow('worker could not be reached');

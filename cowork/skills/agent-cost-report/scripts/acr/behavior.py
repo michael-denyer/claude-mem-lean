@@ -18,6 +18,7 @@ import os
 import re
 
 from . import costs, prices, transcripts
+from .evidence import origin_device_col
 from .period import PT
 
 # ---- constants (plan 2B.1) ----
@@ -213,12 +214,12 @@ def turn_cost(turns):
 
 # ---- human messages: transcripts first, claude-mem user_prompts only for sessions without a box transcript ----
 def load_prompt_rows(db, scope):
-    cols = "content_session_id, prompt_text, created_at_epoch, coalesce(origin_device_id,'local')"
+    cols = f"content_session_id, prompt_text, created_at_epoch, {origin_device_col(db, 'user_prompts')}"
     if scope.kind == "session":
         q = f"SELECT {cols} FROM user_prompts WHERE content_session_id = ?"; args = (scope.session,)
     else:
         q = f"SELECT {cols} FROM user_prompts WHERE created_at_epoch >= ? AND created_at_epoch < ?"; args = (scope.S, scope.E)
-    return [dict(session=r[0], text=r[1] or "", ts_ms=r[2], device=r[3]) for r in db.execute(q, args)]
+    return [dict(session=r[0], text=r[1] or "", ts_ms=r[2], device=r[3] or "local") for r in db.execute(q, args)]
 
 
 def human_messages(sessions, prompt_rows):

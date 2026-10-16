@@ -254,31 +254,24 @@ describe('session_summaries ON UPDATE CASCADE survives v7 rebuild (#3849)', () =
     const summaryFk = memorySessionFk(store.db, 'session_summaries');
     expect(summaryFk?.on_update).toBe('CASCADE');
     expect(summaryFk?.on_delete).toBe('CASCADE');
-    expect(store.db.query('PRAGMA index_list(session_summaries)').all()).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ name: 'ux_session_summaries_origin', unique: 1, origin: 'c' }),
-      ])
+    expect(store.db.query('PRAGMA index_list(session_summaries)').all()).not.toEqual(
+      expect.arrayContaining([expect.objectContaining({ name: 'ux_session_summaries_origin' })])
     );
     const observationFk = memorySessionFk(store.db, 'observations');
     expect(observationFk?.on_update).toBe('CASCADE');
 
     const carried = store.db.prepare(`
-      SELECT discovery_tokens, merged_into_project, synced_at, origin_device_id, origin_local_id, sync_rev
+      SELECT discovery_tokens, merged_into_project
       FROM session_summaries WHERE request = 'already summarised'
-    `).get() as {
-      discovery_tokens: number;
-      merged_into_project: string;
-      synced_at: number;
-      origin_device_id: string;
-      origin_local_id: string;
-      sync_rev: string;
-    };
+    `).get() as { discovery_tokens: number; merged_into_project: string };
     expect(carried.discovery_tokens).toBe(7);
     expect(carried.merged_into_project).toBe('keep-merged');
-    expect(carried.synced_at).toBe(99);
-    expect(carried.origin_device_id).toBe('dev-1');
-    expect(carried.origin_local_id).toBe('local-9');
-    expect(carried.sync_rev).toBe('5');
+    // v66 drops the sync columns the old rebuild carried.
+    const summaryColumns = (store.db.query('PRAGMA table_info(session_summaries)').all() as Array<{ name: string }>)
+      .map(column => column.name);
+    for (const column of ['synced_at', 'origin_device_id', 'origin_local_id', 'sync_rev']) {
+      expect(summaryColumns).not.toContain(column);
+    }
 
     const session = store.db.prepare(
       `SELECT id FROM sdk_sessions WHERE memory_session_id = 'mem-healthy'`

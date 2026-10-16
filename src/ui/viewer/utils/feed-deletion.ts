@@ -17,7 +17,7 @@ const FEED_ITEM_TYPES: readonly FeedItemType[] = ['observation', 'summary', 'pro
 /** User-facing reason for a refused delete, by the worker's status code. */
 export function describeDeleteFailure(status: number): string {
   if (status === 404) {
-    return 'Not deleted: this memory was synced from another device (delete it there), or it is already gone.';
+    return 'Not deleted: this memory is already gone.';
   }
   return `Not deleted: the worker answered HTTP ${status}.`;
 }

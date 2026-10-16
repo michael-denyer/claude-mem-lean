@@ -22,7 +22,7 @@ function ftsBlockBytes(db: Database): number {
 // delete-marker segments — the #2793 bloat shape.
 function seedBloatedObservationsFts(db: Database): void {
   db.run('PRAGMA journal_mode = WAL');
-  db.run('CREATE TABLE observations (id INTEGER PRIMARY KEY, title TEXT, sync_rev INTEGER DEFAULT 0)');
+  db.run('CREATE TABLE observations (id INTEGER PRIMARY KEY, title TEXT, revision INTEGER DEFAULT 0)');
   db.run(`CREATE VIRTUAL TABLE observations_fts USING fts5(title, content='observations', content_rowid='id')`);
   db.run(`
     CREATE TRIGGER observations_ai AFTER INSERT ON observations BEGIN
@@ -40,7 +40,7 @@ function seedBloatedObservationsFts(db: Database): void {
     insert.run(`${body} row${i}`);
   }
   for (let round = 0; round < 3; round++) {
-    db.run('UPDATE observations SET sync_rev = sync_rev + 1');
+    db.run('UPDATE observations SET revision = revision + 1');
   }
 }
 

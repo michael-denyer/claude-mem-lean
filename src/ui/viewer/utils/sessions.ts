@@ -73,7 +73,7 @@ export function parseViewRoute(hash: string): ViewRoute {
 /** User-facing reason for a refused session delete, by the worker's status code. */
 export function describeSessionDeleteFailure(status: number): string {
   if (status === 409) {
-    return 'Not deleted: this session is still running, or holds memories synced from another device (delete those there).';
+    return 'Not deleted: this session is still running.';
   }
   if (status === 404) {
     return 'Not deleted: this session is already gone.';

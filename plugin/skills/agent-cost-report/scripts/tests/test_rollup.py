@@ -169,6 +169,16 @@ class Rollup(Fixture):
         self.assertEqual(li["m2"]["device"], ["remote-1"]); self.assertEqual(li["m1"]["device"], ["local"])
         self.assertNotIn(REMOTE_UUID, json.dumps([r, ev, review])); self.assertEqual(r["totals"]["devices"], 2)
 
+    def test_schema_without_origin_device_reads_every_row_as_local(self):   # claude-mem schema v66 dropped the column
+        import sqlite3
+        db = sqlite3.connect(self.dbp)
+        for table in ("observations", "session_summaries", "user_prompts"): db.execute(f"alter table {table} drop column origin_device_id")
+        db.commit(); db.close()
+        r, ev, review = self.build(behavior=True)
+        self.assertEqual([d["device"] for d in r["devices"]], ["local"])
+        li = {x["session_ids"][0]: x for x in r["line_items"]}
+        self.assertEqual(li["m2"]["device"], ["local"])
+
     def test_statuses_trivial_and_totals(self):
         r, _, _ = self.build()
         li = {x["session_ids"][0]: x for x in r["line_items"]}

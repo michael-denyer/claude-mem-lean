@@ -25,7 +25,7 @@ describe('DatabaseManager start-up housekeeping', () => {
     else writeFileSync(USER_SETTINGS_PATH, savedSettings, 'utf-8');
   });
 
-  it('clears ops a removed cloud sync left queued, even when old sync credentials remain in settings', async () => {
+  it('starts with no sync tables, even when old sync credentials remain in settings', async () => {
     writeFileSync(USER_SETTINGS_PATH, JSON.stringify({
       CLAUDE_MEM_CLOUD_SYNC_TOKEN: 'sync-token',
       CLAUDE_MEM_CLOUD_SYNC_USER_ID: 'user-1',
@@ -35,20 +35,14 @@ describe('DatabaseManager start-up housekeeping', () => {
     manager = new DatabaseManager();
     await manager.initialize();
     await manager.close();
+    manager = null;
 
-    const db = new Database(DB_PATH);
-    db.prepare('INSERT INTO sync_outbox (op_uuid, body, created_at_epoch) VALUES (?, ?, ?)')
-      .run('op-queued-while-syncing', JSON.stringify({ op: 'tombstone' }), Date.now());
+    const db = new Database(DB_PATH, { readonly: true });
+    const syncTables = db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name LIKE 'sync\\_%' ESCAPE '\\'").all();
     db.close();
-
-    manager = new DatabaseManager();
-    await manager.initialize();
-
-    const reopened = new Database(DB_PATH, { readonly: true });
-    const { n } = reopened.prepare('SELECT COUNT(*) AS n FROM sync_outbox').get() as { n: number };
-    reopened.close();
-    expect(n).toBe(0);
+    expect(syncTables).toEqual([]);
   });
+
   it('purges linked tool_uses past CLAUDE_MEM_TOOL_USES_RETENTION_DAYS at start, and keeps unlinked ones', async () => {
     writeFileSync(USER_SETTINGS_PATH, JSON.stringify({ CLAUDE_MEM_TOOL_USES_RETENTION_DAYS: '30' }), 'utf-8');
     manager = new DatabaseManager();

@@ -253,10 +253,6 @@ function asObservation(value: unknown): MemObservation {
     ...optionalString(record.merged_into_project, 'mergedIntoProject'),
     ...optionalString(record.agent_type, 'agentType'),
     ...optionalString(record.agent_id, 'agentId'),
-    ...typeof record.synced_at === 'number' ? { syncedAt: record.synced_at } : {},
-    ...optionalString(record.origin_device_id, 'originDeviceId'),
-    ...optionalString(record.origin_local_id, 'originLocalId'),
-    ...optionalString(record.sync_rev, 'syncRev'),
   }
 }
 

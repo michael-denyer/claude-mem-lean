@@ -7,7 +7,6 @@ import { ChromaSync } from '../sync/ChromaSync.js';
 import { SettingsDefaultsManager } from '../../shared/SettingsDefaultsManager.js';
 import { USER_SETTINGS_PATH, DB_PATH } from '../../shared/paths.js';
 import { logger } from '../../utils/logger.js';
-import { purgeUndrainableSyncOutbox } from '../sync/outbox-purge.js';
 import { purgeLinkedToolUses, resolveToolUsesRetentionDays } from '../sqlite/tool-uses.js';
 import type { DBSession } from '../worker-types.js';
 
@@ -34,9 +33,6 @@ export class DatabaseManager {
     } else {
       logger.info('DB', 'Chroma disabled via CLAUDE_MEM_CHROMA_ENABLED=false, using SQLite-only search');
     }
-
-    // Ops queued while cloud sync existed can never upload now (#4228).
-    purgeUndrainableSyncOutbox(this.db);
 
     purgeLinkedToolUses(this.db, resolveToolUsesRetentionDays(settings.CLAUDE_MEM_TOOL_USES_RETENTION_DAYS));
 

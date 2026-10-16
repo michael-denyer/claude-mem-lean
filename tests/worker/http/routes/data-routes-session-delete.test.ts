@@ -119,24 +119,6 @@ describe('DELETE /api/sessions/:platformSource/:contentSessionId', () => {
     expect(count(db, 'tool_uses')).toBe(1);
   });
 
-  it('refuses with 409 while the session holds rows synced from another device, deleting nothing', () => {
-    seedSession(db, 'content-mixed', 'memory-mixed', 'proj-mixed');
-    db.prepare(`
-      INSERT INTO observations (memory_session_id, project, type, title, created_at, created_at_epoch, origin_device_id, origin_local_id)
-      VALUES ('memory-mixed', 'proj-mixed', 'discovery', 'from laptop', '2026-07-20T00:00:00.000Z', 1752969600000, 'other-device', '77')
-    `).run();
-    setup();
-
-    const { status, body } = callDelete('claude', 'content-mixed');
-
-    expect(status).toBe(409);
-    expect(body.remoteItemCount).toBe(1);
-    // The FK cascade would have dropped the replicated row.
-    expect(count(db, 'observations')).toBe(2);
-    expect(count(db, 'sdk_sessions')).toBe(1);
-    expect(broadcasts).toEqual([]);
-  });
-
   it('refuses with 409 while the session is still active in the worker', () => {
     const sessionDbId = seedSession(db, 'content-live', 'memory-live', 'proj-live');
     activeSessionIds.add(sessionDbId);
@@ -169,23 +151,5 @@ describe('DELETE /api/sessions/:platformSource/:contentSessionId', () => {
     expect(callDelete('claude', 'does-not-exist').status).toBe(404);
     expect(callDelete('codex', 'content-keep').status).toBe(404);
     expect(count(db, 'sdk_sessions')).toBe(1);
-  });
-
-  it('deletes rows an earlier cloud sync acknowledged', () => {
-    seedSession(db, 'content-guard', 'memory-guard', 'proj-guard');
-    const obsId = (db.prepare(`SELECT id FROM observations WHERE memory_session_id = 'memory-guard'`).get() as { id: number }).id;
-    db.prepare(`
-      INSERT INTO sync_entity_heads (entity_id, kind, origin_device_id, origin_local_id, entity_rev, operation_sha256, deleted, updated_at_epoch)
-      VALUES ('entity-1', 'observation', 'some-other-device', ?, '1', 'sha', 0, 1752969600000)
-    `).run(String(obsId));
-
-    setup();
-
-    const { status } = callDelete('claude', 'content-guard');
-
-    expect(status).toBe(200);
-    expect(count(db, 'observations')).toBe(0);
-    expect(count(db, 'session_summaries')).toBe(0);
-    expect(count(db, 'sdk_sessions')).toBe(0);
   });
 });

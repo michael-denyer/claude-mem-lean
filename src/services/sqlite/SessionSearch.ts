@@ -49,7 +49,7 @@ export const SESSION_SUMMARIES_FTS_TRIGGER_NAMES = [
  * Sync triggers for the external-content FTS5 indexes, shared by FTS setup here and by the
  * SessionStore migrations that rebuild these tables. The update triggers fire only when an
  * indexed column is written: an unscoped AFTER UPDATE also fired for bookkeeping writes
- * (sync_rev, merged_into_project, content_hash, ...), and every firing appended a delete
+ * (merged_into_project, content_hash, ...), and every firing appended a delete
  * marker plus a full re-insert of the row's text to the index (#2793).
  */
 export const OBSERVATIONS_FTS_TRIGGERS_SQL = `
