@@ -312,9 +312,9 @@ export function buildCmemActivationSettings(
 
 /**
  * Make the Anthropic Max choice genuinely local, including on a reinstall
- * after CMEM Pro. Staged CMEM material is removed. An
- * active CMEM gateway key is removed too, while unrelated personal OpenRouter
- * credentials are left untouched for a future explicit provider switch.
+ * after CMEM Pro. Staged CMEM material is removed. An active CMEM gateway key
+ * is removed too, while unrelated personal OpenRouter credentials are left
+ * untouched for a future explicit provider switch.
  */
 export function buildAnthropicMaxLocalSettings(
   settings: SettingsLike,

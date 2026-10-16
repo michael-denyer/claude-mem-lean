@@ -93,10 +93,11 @@ const toolUsesBatchSchema = z.object({
 }).passthrough();
 
 // The export shape carries columns that are stored locally as JSON strings —
-// facts, concepts, files_read/modified — as real arrays. Re-stringify them at the boundary so every downstream consumer
-// (the SQLite binding layer and the ChromaDB `JSON.parse` path alike) sees the
-// canonical JSON-string shape rather than a raw array. Without this, the array
-// crashes bun:sqlite ("Binding expected string…") and silently drops from Chroma.
+// facts, concepts, files_read/modified — as real arrays. Re-stringify them at
+// the boundary so every downstream consumer (the SQLite binding layer and the
+// ChromaDB `JSON.parse` path alike) sees the canonical JSON-string shape rather
+// than a raw array. Without this, the array crashes bun:sqlite ("Binding
+// expected string…") and silently drops from Chroma.
 const OBSERVATION_JSON_FIELDS = ['facts', 'concepts', 'files_read', 'files_modified'] as const;
 const SUMMARY_JSON_FIELDS = ['files_read', 'files_edited'] as const;
 

@@ -164,8 +164,9 @@ describe('worker CORS', () => {
 });
 
 // A stray DELETE from any page CORS lets read (every http://localhost:* page)
-// would remove memories. Deletes are accepted only from the worker's own page, an allowlisted
-// origin, or a client that sends no Origin (hooks, the CLI, curl).
+// would remove memories. Deletes are accepted only from the worker's own page,
+// an allowlisted origin, or a client that sends no Origin (hooks, the CLI,
+// curl).
 describe('browser deletes', () => {
   async function workerAppWithDelete(policy: WorkerOriginPolicy, deleted: string[]): Promise<number> {
     const app = express();

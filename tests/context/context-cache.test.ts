@@ -8,7 +8,6 @@
  *   the live path on a miss or a stale (>24h) file, and never leaks placeholders.
  */
 import { afterAll, afterEach, beforeEach, describe, expect, it, mock } from 'bun:test';
-import { Database } from 'bun:sqlite';
 import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
