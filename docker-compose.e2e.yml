@@ -3,7 +3,7 @@
 # scripts/e2e-server-docker.sh.
 services:
   server-e2e:
-    image: node:20-alpine
+    image: node:22.23.4-alpine
     depends_on:
       claude-mem-server:
         condition: service_healthy
