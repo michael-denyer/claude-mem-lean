@@ -9,7 +9,7 @@ afterwards.
 
 | File | Purpose |
 |------|---------|
-| `Dockerfile` | Image definition (node:20 + Bun + uv + Claude Code CLI + local `plugin/`) |
+| `Dockerfile` | Image definition (node:22.23.4 + Bun + uv + Claude Code CLI + local `plugin/`) |
 | `build.sh` | Runs `npm run build` then `docker build`. Tag defaults to `claude-mem:basic`. |
 | `entrypoint.sh` | Runs inside the container. Seeds OAuth creds into `$HOME/.claude/` if mounted, then `exec "$@"`. |
 | `run.sh` | Host-side launcher. Extracts creds (Keychain → file → env), mounts a persistent data dir, drops you into an interactive shell. |
@@ -39,7 +39,7 @@ sqlite3 .docker-claude-mem-data/claude-mem.db 'select count(*) from observations
 ## What's in the image
 
 Mirrors the layout of [anthropics/claude-code's devcontainer](https://github.com/anthropics/claude-code/blob/main/.devcontainer/Dockerfile):
-`FROM node:20`, non-root `node` user, global `npm install -g @anthropic-ai/claude-code`.
+`FROM node:22.23.4`, non-root `node` user, global `npm install -g @anthropic-ai/claude-code`.
 Skips the firewall/zsh/fzf/delta/git-hist tooling since this image is about
 running claude-mem, not editing code.
 
@@ -61,7 +61,7 @@ latest:
 ```bash
 docker build \
   -f docker/claude-mem/Dockerfile \
-  --build-arg BUN_VERSION=1.3.12 \
+  --build-arg BUN_VERSION=1.4.4 \
   --build-arg UV_VERSION=0.11.7 \
   --build-arg CLAUDE_CODE_VERSION=1.2.3 \
   -t claude-mem:basic .
@@ -69,7 +69,7 @@ docker build \
 
 | Arg | Default | Notes |
 |-----|---------|-------|
-| `BUN_VERSION` | `1.3.12` | Installed via the official `bun.sh/install` script, tag `bun-v${BUN_VERSION}`. |
+| `BUN_VERSION` | `1.4.4` | Installed via the official `bun.sh/install` script, tag `bun-v${BUN_VERSION}`. |
 | `UV_VERSION` | `0.11.7` | Installed via the versioned `astral.sh/uv/${UV_VERSION}/install.sh`. |
 | `CLAUDE_CODE_VERSION` | `latest` | npm tag or exact version. Pin in CI, let it float locally. |
 

@@ -1,5 +1,5 @@
 
-FROM node:20
+FROM node:22.23.4
 
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -16,7 +16,7 @@ RUN apt-get update \
       sqlite3 \
  && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-ARG BUN_VERSION=1.3.12
+ARG BUN_VERSION=1.4.4
 ENV BUN_INSTALL="/usr/local/bun"
 RUN curl -fsSL https://bun.sh/install | bash -s "bun-v${BUN_VERSION}" \
  && chmod -R a+rX /usr/local/bun
