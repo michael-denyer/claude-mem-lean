@@ -4,6 +4,7 @@ import { SessionStore } from '../sqlite/SessionStore.js';
 import { SessionSearch } from '../sqlite/SessionSearch.js';
 import { openGuardedSqliteDatabase } from '../sqlite/connection.js';
 import { ChromaSync } from '../sync/ChromaSync.js';
+import { BackupManager } from '../backup/BackupManager.js';
 import { SettingsDefaultsManager } from '../../shared/SettingsDefaultsManager.js';
 import { USER_SETTINGS_PATH, DB_PATH } from '../../shared/paths.js';
 import { logger } from '../../utils/logger.js';
@@ -15,6 +16,7 @@ export class DatabaseManager {
   private sessionStore: SessionStore | null = null;
   private sessionSearch: SessionSearch | null = null;
   private chromaSync: ChromaSync | null = null;
+  private backupManager: BackupManager | null = null;
 
   async initialize(): Promise<void> {
     // Guard before pragmas: journal_mode = WAL persistently rewrites the file,
@@ -36,11 +38,20 @@ export class DatabaseManager {
 
     purgeLinkedToolUses(this.db, resolveToolUsesRetentionDays(settings.CLAUDE_MEM_TOOL_USES_RETENTION_DAYS));
 
+    // Automatic local snapshots are opt-in. Disabled installs get null so the
+    // lifecycle `getBackupManager()?.start()` call is a free no-op.
+    if (settings.CLAUDE_MEM_BACKUP_ENABLED === 'true') {
+      this.backupManager = new BackupManager(settings);
+    }
+
     logger.info('DB', 'Database initialized (shared connection)');
   }
 
   async close(): Promise<void> {
     this.chromaSync = null;
+
+    this.backupManager?.stop();
+    this.backupManager = null;
 
     this.sessionStore = null;
     this.sessionSearch = null;
@@ -68,6 +79,10 @@ export class DatabaseManager {
 
   getChromaSync(): ChromaSync | null {
     return this.chromaSync;
+  }
+
+  getBackupManager(): BackupManager | null {
+    return this.backupManager;
   }
 
   getConnection(): Database {

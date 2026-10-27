@@ -113,6 +113,7 @@ describe('buildWorkStateContextSection', () => {
     expect(section).toEndWith('  - [todo] timeout-decision, updated about 3 days ago');
   });
 
+
   it('says nothing is open when nothing has been written', () => {
     expect(buildWorkStateContextSection([], NOW_EPOCH)).toEndWith('\n\nNothing open yet.');
   });

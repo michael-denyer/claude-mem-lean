@@ -98,9 +98,11 @@
           "development",
           "troubleshooting",
           "platform-integration",
+          "hermes-integration",
           "kimi-integration",
           "qoder-integration",
-          "screenpipe-integration"
+          "screenpipe-integration",
+          "notion-export"
         ]
       },
       {
@@ -108,7 +110,8 @@
         "icon": "cloud",
         "pages": [
           "hosted-server",
-          "cmem-pro-headless"
+          "cmem-pro-headless",
+          "usage/backups"
         ]
       },
       {

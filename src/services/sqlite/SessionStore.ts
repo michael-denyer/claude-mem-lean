@@ -18,6 +18,7 @@ import {
 } from '../../types/database.js';
 import type { ObservationSearchResult, SessionSummarySearchResult } from './types.js';
 import { computeObservationContentHash, hasStorableTitle } from './observations/store.js';
+import { replaceObservationFileIndex } from './observations/files.js';
 import { seedReinforcement, reinforceObservation } from '../reinforcement/persist.js';
 import {
   createToolUsesSchema,
@@ -34,6 +35,7 @@ import {
   createWorkStateSchema,
   appendWorkStateEntry as appendWorkStateEntryRow,
   getWorkStateEntries as getWorkStateEntriesRows,
+  scopeWorkStateEntries,
   type WorkStateEntry,
   type WorkStateFields,
 } from './work-state.js';
@@ -257,6 +259,7 @@ export class SessionStore {
     this.ensureMergedIntoProjectCoveringIndexes();
     this.ensureNativePromptIdentity();
     this.dropSyncSchema();
+    this.ensureObservationFileIndex();
   }
 
   /**
@@ -268,7 +271,7 @@ export class SessionStore {
    */
   private dropSyncSchema(): void {
     this.db.transaction(() => {
-      for (const table of ['observations', 'session_summaries', 'user_prompts']) {
+      for (const table of ['observations', 'session_summaries', 'user_prompts', 'work_state_entries']) {
         this.db.run(`DROP INDEX IF EXISTS idx_${table}_unsynced`);
         this.db.run(`DROP INDEX IF EXISTS ux_${table}_origin`);
         const columns = new Set(
@@ -284,6 +287,45 @@ export class SessionStore {
       this.db.prepare('INSERT OR IGNORE INTO schema_versions (version, applied_at) VALUES (?, ?)')
         .run(66, new Date().toISOString());
     }).immediate();
+  }
+
+  /**
+   * v68: file-context looks observations up by file path. json_each over
+   * files_read/files_modified scanned the whole table on the one shared
+   * connection, so concurrent lookups queued past the hook budget. Index each
+   * path instead and answer the lookup from it.
+   */
+  private ensureObservationFileIndex(): void {
+    this.db.transaction(() => {
+      if (this.db.query('SELECT version FROM schema_versions WHERE version = 68').get()) return;
+      this.db.run(`CREATE TABLE IF NOT EXISTS observation_files (
+        path TEXT NOT NULL,
+        observation_id INTEGER NOT NULL REFERENCES observations(id) ON DELETE CASCADE,
+        PRIMARY KEY (path, observation_id)
+      )`);
+      this.db.run('CREATE INDEX IF NOT EXISTS idx_observation_files_observation ON observation_files(observation_id)');
+      // One statement, in SQL: expanding 90k rows in JS would reread every body.
+      const expand = (column: string): string =>
+        `SELECT o.id, je.value FROM observations o, json_each(o.${column}) je
+         WHERE json_valid(o.${column}) AND json_type(o.${column}) = 'array' AND je.type = 'text'`;
+      this.db.run(`INSERT OR IGNORE INTO observation_files(observation_id, path)
+        ${expand('files_read')} UNION ${expand('files_modified')}`);
+      this.db.prepare('INSERT INTO schema_versions (version, applied_at) VALUES (?, ?)')
+        .run(68, new Date().toISOString());
+    }).immediate();
+  }
+
+  /** Record the file paths an observation touches so by-file lookup is an index seek. */
+  private indexObservationFiles(observationId: number, filesRead: readonly string[], filesModified: readonly string[]): void {
+    const paths = new Set<string>();
+    for (const filePath of [...filesRead, ...filesModified]) {
+      if (typeof filePath === 'string' && filePath.length > 0) paths.add(filePath);
+    }
+    if (paths.size === 0) return;
+    const insert = this.db.prepare(
+      'INSERT OR IGNORE INTO observation_files(path, observation_id) VALUES (?, ?)',
+    );
+    for (const filePath of paths) insert.run(filePath, observationId);
   }
 
   /** Local host retry identity. Runs after every legacy user_prompts rebuild. */
@@ -2515,15 +2557,10 @@ export class SessionStore {
   }
 
   getWorkStateEntries(projects: string[], listName?: string): WorkStateEntry[] {
-    const entries = getWorkStateEntriesRows(this.db, this.getProjectReadKeys(projects), listName);
-    // Keys explicitly supplied by the checkout describe one list history.
-    // Adopted projects discovered by getProjectReadKeys retain their own scope.
-    const foldKey = (key: string) => key.replace(/[A-Z]/g, character => character.toLowerCase());
-    const aliases = new Set(projects.map(foldKey));
-    const primary = projects.at(-1);
-    return entries.map(entry => primary && aliases.has(foldKey(entry.project))
-      ? { ...entry, scope_project: primary }
-      : entry);
+    return scopeWorkStateEntries(
+      getWorkStateEntriesRows(this.db, this.getProjectReadKeys(projects), listName),
+      projects,
+    );
   }
 
   countToolUses(filters: ToolUseQueryFilters = {}): Array<{ tool_name: string; uses: number }> {
@@ -2914,9 +2951,18 @@ export class SessionStore {
 
     if (existing) {
       if (project) {
+        // 'unknown' is the placeholder ingest paths register when a payload has
+        // no cwd (#4772); a later init with the real project must repair it, but
+        // a real project is never demoted back to the placeholder. 'unknown' is
+        // also a legitimate path-mode project name — a non-git checkout literally
+        // named `unknown` resolves to it (#4774 review) — so only repair rows
+        // that provably hold the placeholder: every ingest/init path that
+        // resolves a real cwd also records it via setSessionCwd (first-write-wins,
+        // guarded on cwd IS NULL), so a stored 'unknown' with a NULL cwd can only
+        // come from a no-cwd payload.
         this.db.prepare(`
           UPDATE sdk_sessions SET project = ?
-          WHERE id = ? AND (project IS NULL OR project = '')
+          WHERE id = ? AND (project IS NULL OR project = '' OR (project = 'unknown' AND cwd IS NULL))
         `).run(project, existing.id);
       }
       // A tool-first init persists the placeholder; the first real prompt repairs it.
@@ -3359,6 +3405,7 @@ export class SessionStore {
 
         if (inserted) {
           if (dedup.enabled) this.maintainDedupOnInsert(project, inserted.id, observation.title, dedup);
+          this.indexObservationFiles(inserted.id, observation.files_read, observation.files_modified);
           observationIds.push(inserted.id);
           mergedIntoExisting.push(false);
           insertedObservationIds.push(inserted.id);
@@ -3544,13 +3591,14 @@ export class SessionStore {
     depthBefore: number = 10,
     depthAfter: number = 10,
     project?: string,
-    platformSource?: string
+    platformSource?: string,
+    projects?: string[]
   ): {
     observations: any[];
     sessions: any[];
     prompts: any[];
   } {
-    return this.getTimelineAroundObservation(null, anchorEpoch, depthBefore, depthAfter, project, platformSource);
+    return this.getTimelineAroundObservation(null, anchorEpoch, depthBefore, depthAfter, project, platformSource, projects);
   }
 
   getTimelineAroundObservation(
@@ -3559,25 +3607,23 @@ export class SessionStore {
     depthBefore: number = 10,
     depthAfter: number = 10,
     project?: string,
-    platformSource?: string
+    platformSource?: string,
+    projects?: string[]
   ): {
     observations: any[];
     sessions: any[];
     prompts: any[];
   } {
     const normalizedPlatformSource = platformSource ? normalizePlatformSource(platformSource) : undefined;
+    const readProjects = scopedProjects({ project, projects });
     const buildScope = (rowAlias: string, sessionAlias: string, includeMergedProject: boolean = false): { clause: string; params: any[] } => {
       const conditions: string[] = [];
       const params: any[] = [];
 
-      if (project) {
-        if (includeMergedProject) {
-          conditions.push(`(${rowAlias}.project COLLATE NOCASE = ? OR ${rowAlias}.merged_into_project COLLATE NOCASE = ?)`);
-          params.push(project, project);
-        } else {
-          conditions.push(`${rowAlias}.project COLLATE NOCASE = ?`);
-          params.push(project);
-        }
+      if (readProjects.length > 0) {
+        const scope = projectScopeSql(rowAlias, readProjects, { includeMerged: includeMergedProject });
+        conditions.push(scope.sql);
+        params.push(...scope.params);
       }
 
       if (normalizedPlatformSource) {
@@ -3959,28 +4005,37 @@ export class SessionStore {
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
-    const result = stmt.run(
-      obs.memory_session_id,
-      obs.project,
-      coerceBindValue(obs.text),
-      obs.type,
-      coerceBindValue(obs.title),
-      coerceBindValue(obs.subtitle),
-      coerceBindValue(obs.facts),
-      coerceBindValue(obs.narrative),
-      coerceBindValue(obs.concepts),
-      coerceBindValue(obs.files_read),
-      coerceBindValue(obs.files_modified),
-      obs.prompt_number,
-      obs.discovery_tokens || 0,
-      obs.agent_type ?? null,
-      obs.agent_id ?? null,
-      obs.created_at,
-      obs.created_at_epoch
-    );
+    // The row and its observation_files mappings commit together: an import
+    // interrupted between the two writes leaves an observation permanently
+    // unsearchable by file — the replay match skips the existing row and the
+    // v68 migration is already stamped, so neither repairs the gap.
+    const importedId = this.db.transaction(() => {
+      const result = stmt.run(
+        obs.memory_session_id,
+        obs.project,
+        coerceBindValue(obs.text),
+        obs.type,
+        coerceBindValue(obs.title),
+        coerceBindValue(obs.subtitle),
+        coerceBindValue(obs.facts),
+        coerceBindValue(obs.narrative),
+        coerceBindValue(obs.concepts),
+        coerceBindValue(obs.files_read),
+        coerceBindValue(obs.files_modified),
+        obs.prompt_number,
+        obs.discovery_tokens || 0,
+        obs.agent_type ?? null,
+        obs.agent_id ?? null,
+        obs.created_at,
+        obs.created_at_epoch
+      );
+      const id = result.lastInsertRowid as number;
+      replaceObservationFileIndex(this.db, id, obs.files_read, obs.files_modified);
+      return id;
+    })();
     emitContextInvalidation({ projects: [obs.project] }, 'importObservation');
 
-    return { imported: true, id: result.lastInsertRowid as number };
+    return { imported: true, id: importedId };
   }
 
   rebuildObservationsFTSIndex(): void {
