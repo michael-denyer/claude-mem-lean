@@ -96,7 +96,7 @@ describe('SearchRoutes Welcome Hint', () => {
     ];
 
     countQueryStub = mock(() => ({ count: 0 }));
-    prepareStub = mock(() => ({ get: countQueryStub }));
+    prepareStub = mock(() => ({ get: countQueryStub, finalize: () => {} }));
     mockSessionStore = { db: { prepare: prepareStub }, getWorkStateEntries: workStateEntriesStub };
     mockSearchManager = {
       getSessionStore: () => mockSessionStore,
@@ -220,7 +220,7 @@ describe('SearchRoutes Welcome Hint', () => {
 
   it('skips the welcome hint when at least one observation exists', async () => {
     countQueryStub = mock(() => ({ count: 7 }));
-    prepareStub = mock(() => ({ get: countQueryStub }));
+    prepareStub = mock(() => ({ get: countQueryStub, finalize: () => {} }));
     mockSessionStore = { db: { prepare: prepareStub }, getWorkStateEntries: workStateEntriesStub };
     mockSearchManager = { getSessionStore: () => mockSessionStore };
 
@@ -276,7 +276,7 @@ describe('SearchRoutes Welcome Hint', () => {
 
   it('threads normalized platformSource into observation count and context generation', async () => {
     countQueryStub = mock(() => ({ count: 2 }));
-    prepareStub = mock(() => ({ get: countQueryStub }));
+    prepareStub = mock(() => ({ get: countQueryStub, finalize: () => {} }));
     mockSessionStore = { db: { prepare: prepareStub }, getWorkStateEntries: workStateEntriesStub };
     mockSearchManager = { getSessionStore: () => mockSessionStore };
 
@@ -307,12 +307,13 @@ describe('SearchRoutes Welcome Hint', () => {
         platformSource: 'cursor',
       }),
       false,
+      expect.objectContaining({ execution: 'inline' }),
     );
   });
 
   it('does not leak positive observation state across route instances', async () => {
     countQueryStub = mock(() => ({ count: 3 }));
-    prepareStub = mock(() => ({ get: countQueryStub }));
+    prepareStub = mock(() => ({ get: countQueryStub, finalize: () => {} }));
     mockSessionStore = { db: { prepare: prepareStub }, getWorkStateEntries: workStateEntriesStub };
     mockSearchManager = { getSessionStore: () => mockSessionStore };
 
@@ -327,7 +328,7 @@ describe('SearchRoutes Welcome Hint', () => {
 
     generateContextStub.mockClear();
     countQueryStub = mock(() => ({ count: 0 }));
-    prepareStub = mock(() => ({ get: countQueryStub }));
+    prepareStub = mock(() => ({ get: countQueryStub, finalize: () => {} }));
     mockSessionStore = { db: { prepare: prepareStub }, getWorkStateEntries: workStateEntriesStub };
     mockSearchManager = { getSessionStore: () => mockSessionStore };
 
@@ -374,7 +375,7 @@ describe('SearchRoutes Welcome Hint', () => {
 
       let remove: ((req: Request, res: Response) => void) | undefined;
       const dataRoutes = new DataRoutes({} as any,
-        { getSessionStore: () => store } as any,
+        { getSessionStore: () => store, getChromaSync: () => null } as any,
         {} as any, { broadcast: () => {} } as any, {} as any, Date.now());
       dataRoutes.setupRoutes({ get: () => {}, post: () => {}, delete: (path: string, fn: typeof remove) => {
         if (path === '/api/observation/:id') remove = fn;
@@ -429,7 +430,7 @@ describe('SearchRoutes Welcome Hint', () => {
 
     it('leads the context with what is still open and takes its length off the memory budget', async () => {
       countQueryStub = mock(() => ({ count: 7 }));
-      prepareStub = mock(() => ({ get: countQueryStub }));
+      prepareStub = mock(() => ({ get: countQueryStub, finalize: () => {} }));
       mockSessionStore = { db: { prepare: prepareStub }, getWorkStateEntries: workStateEntriesStub };
       // Both request keys are checkout aliases. Match the scope annotation
       // supplied by SessionStore.getWorkStateEntries for those explicit keys.
@@ -453,7 +454,7 @@ describe('SearchRoutes Welcome Hint', () => {
       const placeholderSectionLength = buildWorkStateContextSection(renderedEntries, 'placeholders').length;
       const filledSectionLength = body.length - '\n\nCONTEXT_FROM_GENERATOR'.length;
       expect(placeholderSectionLength).toBeGreaterThanOrEqual(filledSectionLength);
-      expect(generateContextStub).toHaveBeenCalledWith(expect.objectContaining({ reserveChars: placeholderSectionLength + 2 }), false);
+      expect(generateContextStub).toHaveBeenCalledWith(expect.objectContaining({ reserveChars: placeholderSectionLength + 2 }), false, expect.objectContaining({ execution: 'inline' }));
     });
 
     it('leads the welcome hint with what is still open', async () => {
@@ -475,7 +476,7 @@ describe('SearchRoutes Welcome Hint', () => {
     it('leaves the work state out when CLAUDE_MEM_WORK_STATE_ENABLED=false', async () => {
       process.env.CLAUDE_MEM_WORK_STATE_ENABLED = 'false';
       countQueryStub = mock(() => ({ count: 7 }));
-      prepareStub = mock(() => ({ get: countQueryStub }));
+      prepareStub = mock(() => ({ get: countQueryStub, finalize: () => {} }));
       mockSessionStore = { db: { prepare: prepareStub }, getWorkStateEntries: workStateEntriesStub };
       workStateEntriesStub.mockImplementation(releaseEntries);
       const handler = captureContextInjectHandler(new SearchRoutes({ getSessionStore: () => mockSessionStore } as any));
@@ -486,7 +487,7 @@ describe('SearchRoutes Welcome Hint', () => {
 
       expect(workStateEntriesStub).not.toHaveBeenCalled();
       expect(res.send).toHaveBeenCalledWith('CONTEXT_FROM_GENERATOR');
-      expect(generateContextStub).toHaveBeenCalledWith(expect.objectContaining({ reserveChars: 0 }), false);
+      expect(generateContextStub).toHaveBeenCalledWith(expect.objectContaining({ reserveChars: 0 }), false, expect.objectContaining({ execution: 'inline' }));
     });
 
     it('leaves the work state out of the welcome hint when CLAUDE_MEM_WORK_STATE_ENABLED=false', async () => {
@@ -505,7 +506,7 @@ describe('SearchRoutes Welcome Hint', () => {
 
     it('leaves the work state out of the colored terminal preview, which is for the human', async () => {
       countQueryStub = mock(() => ({ count: 7 }));
-      prepareStub = mock(() => ({ get: countQueryStub }));
+      prepareStub = mock(() => ({ get: countQueryStub, finalize: () => {} }));
       mockSessionStore = { db: { prepare: prepareStub }, getWorkStateEntries: workStateEntriesStub };
       workStateEntriesStub.mockImplementation(releaseEntries);
       const handler = captureContextInjectHandler(new SearchRoutes({ getSessionStore: () => mockSessionStore } as any));
@@ -516,7 +517,7 @@ describe('SearchRoutes Welcome Hint', () => {
 
       expect(workStateEntriesStub).not.toHaveBeenCalled();
       expect(res.send).toHaveBeenCalledWith('CONTEXT_FROM_GENERATOR');
-      expect(generateContextStub).toHaveBeenCalledWith(expect.objectContaining({ reserveChars: 0 }), true);
+      expect(generateContextStub).toHaveBeenCalledWith(expect.objectContaining({ reserveChars: 0 }), true, expect.objectContaining({ execution: 'inline' }));
     });
   });
 
@@ -528,7 +529,7 @@ describe('SearchRoutes Welcome Hint', () => {
 
     const searchManagerWithObservations = () => ({
       getSessionStore: () => ({
-        db: { prepare: mock(() => ({ get: mock(() => ({ count: 1 })) })) },
+        db: { prepare: mock(() => ({ get: mock(() => ({ count: 1 })), finalize: () => {} })) },
         getWorkStateEntries: workStateEntriesStub,
       }),
     });

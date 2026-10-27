@@ -4,6 +4,7 @@ import { z } from 'zod';
 import path from 'path';
 import { readFileSync, statSync, existsSync } from 'fs';
 import { logger } from '../../../../utils/logger.js';
+import { logChromaWriteFailure } from '../../search/errors.js';
 import { getPackageRoot, paths } from '../../../../shared/paths.js';
 import { getWorkerPort } from '../../../../shared/worker-utils.js';
 import { PaginationHelper } from '../../PaginationHelper.js';
@@ -22,6 +23,15 @@ import { getFirstObservationCreatedAt } from '../../../sqlite/observations/recen
 import { getParkedSlotWaiterCount } from '../../../../supervisor/process-registry.js';
 import { getUptimeSeconds } from '../../../../shared/uptime.js';
 import { emitContextInvalidation } from '../../../../shared/context-invalidation.js';
+import { projectReadKeysFor } from '../../search/project-where-filter.js';
+
+// Chroma doc_type per content kind. Observation and summary id spaces overlap,
+// so the delete-route cleanup must be scoped by doc_type, not sqlite_id alone.
+const CHROMA_DOC_TYPES: Record<ContentKind, string> = {
+  observation: 'observation',
+  summary: 'session_summary',
+  prompt: 'user_prompt',
+};
 
 type ContentKind = 'observation' | 'summary' | 'prompt';
 type ContentTable = 'observations' | 'session_summaries' | 'user_prompts';
@@ -59,6 +69,7 @@ const observationsBatchSchema = z.object({
   orderBy: z.enum(['date_desc', 'date_asc']).optional(),
   limit: z.number().int().positive().optional(),
   project: z.string().optional(),
+  projects: stringArrayLike.optional(),
   platformSource: z.string().optional(),
   platform_source: z.string().optional(),
 }).passthrough();
@@ -285,7 +296,7 @@ export class DataRoutes extends BaseRouteHandler {
   });
 
   private handleGetObservationsByIds = this.wrapHandler((req: Request, res: Response): void => {
-    const { ids, orderBy, limit, project } = req.body as z.infer<typeof observationsBatchSchema>;
+    const { ids, orderBy, limit, project, projects } = req.body as z.infer<typeof observationsBatchSchema>;
 
     if (ids.length === 0) {
       res.json([]);
@@ -294,7 +305,8 @@ export class DataRoutes extends BaseRouteHandler {
 
     const store = this.dbManager.getSessionStore();
     const platformSource = this.getOptionalPlatformSourceFromRequest(req);
-    const observations = store.getObservationsByIds(ids, { orderBy, limit, project, platformSource });
+    const readKeys = projectReadKeysFor(store, project, projects);
+    const observations = store.getObservationsByIds(ids, { orderBy, limit, project, projects: readKeys, platformSource });
 
     res.json(observations);
   });
@@ -434,6 +446,27 @@ export class DataRoutes extends BaseRouteHandler {
     store.db.prepare(`DELETE FROM ${table} WHERE id = ?`).run(id);
   }
 
+  /**
+   * Rows are committed gone — drop their fragments from the vector index too
+   * (#4805). Backfill only walks SQLite rows, so nothing else would reclaim
+   * them. Best-effort and in the background: rows are cleaned one at a time so
+   * a large session delete doesn't flood chroma-mcp, and a Chroma failure is
+   * logged per row and never blocks or undoes the delete.
+   */
+  private scheduleChromaRowCleanup(rows: ReadonlyArray<{ kind: ContentKind; id: string }>): void {
+    const chromaSync = this.dbManager.getChromaSync();
+    if (!chromaSync || rows.length === 0) return;
+    void (async () => {
+      for (const row of rows) {
+        try {
+          await chromaSync.deleteRowDocuments(CHROMA_DOC_TYPES[row.kind], Number(row.id));
+        } catch (error: unknown) {
+          logger.warn('CHROMA_SYNC', 'Post-delete Chroma cleanup failed', { kind: row.kind, sqlite_id: row.id, error });
+        }
+      }
+    })();
+  }
+
   /** Production deletion surface: row delete for a single content row. */
   private deleteContent(
     req: Request,
@@ -455,6 +488,7 @@ export class DataRoutes extends BaseRouteHandler {
     }
 
     this.deleteRow(store, table, id);
+    this.scheduleChromaRowCleanup([{ kind, id }]);
     emitContextInvalidation('all', `delete-${kind}`, 'removal');
 
     // Only after the delete committed: open viewer tabs drop the row live.
@@ -575,18 +609,18 @@ export class DataRoutes extends BaseRouteHandler {
       const observations = store.db.prepare(
         `SELECT CAST(id AS TEXT) AS id FROM observations WHERE memory_session_id = ?`
       ).all(sessionRow.memory_session_id) as Array<{ id: string }>;
-      childRows.push(...observations.map(row => ({ kind: 'observation' as ContentKind, table: 'observations' as const, id: row.id })));
+      childRows.push(...observations.map(row => ({ kind: 'observation' as const, table: 'observations' as const, id: row.id })));
 
       const summaries = store.db.prepare(
         `SELECT CAST(id AS TEXT) AS id FROM session_summaries WHERE memory_session_id = ?`
       ).all(sessionRow.memory_session_id) as Array<{ id: string }>;
-      childRows.push(...summaries.map(row => ({ kind: 'summary' as ContentKind, table: 'session_summaries' as const, id: row.id })));
+      childRows.push(...summaries.map(row => ({ kind: 'summary' as const, table: 'session_summaries' as const, id: row.id })));
     }
 
     const prompts = store.db.prepare(
       `SELECT CAST(id AS TEXT) AS id FROM user_prompts WHERE session_db_id = ?`
     ).all(sessionRow.id) as Array<{ id: string }>;
-    childRows.push(...prompts.map(row => ({ kind: 'prompt' as ContentKind, table: 'user_prompts' as const, id: row.id })));
+    childRows.push(...prompts.map(row => ({ kind: 'prompt' as const, table: 'user_prompts' as const, id: row.id })));
 
     const deletedCounts = { observations: 0, summaries: 0, prompts: 0, toolUses: 0 };
     // One transaction for the whole session, so a failure part-way rolls back
@@ -605,6 +639,7 @@ export class DataRoutes extends BaseRouteHandler {
       store.db.prepare(`DELETE FROM sdk_sessions WHERE id = ?`).run(sessionRow.id);
     })();
     emitContextInvalidation('all', 'delete-session', 'removal');
+    this.scheduleChromaRowCleanup(childRows);
 
     // Only after the delete committed: open viewer tabs drop the session live.
     this.sseBroadcaster.broadcast({ type: 'session_deleted', platformSource, contentSessionId });
@@ -652,6 +687,13 @@ export class DataRoutes extends BaseRouteHandler {
   });
 
   private handleImport = this.wrapHandler((req: Request, res: Response): void => {
+    // An import writes arbitrary sessions, summaries, observations and
+    // prompts, so other localhost pages may not trigger it. Origin-less
+    // clients (the CLI import) keep the existing loopback-trust model.
+    if (isForeignLoopbackBrowserWrite(req)) {
+      res.status(403).json({ error: 'Imports from a different localhost origin are not allowed' });
+      return;
+    }
     const { sessions, summaries, observations, prompts } = req.body;
 
     const stats = {
@@ -793,7 +835,7 @@ export class DataRoutes extends BaseRouteHandler {
             obs.created_at_epoch,
             platformSource
           ).catch(err => {
-            logger.error('CHROMA', 'Import ChromaDB sync failed', { id }, err as Error);
+            logChromaWriteFailure('CHROMA', 'Import ChromaDB sync failed', { id }, err);
           });
         };
 

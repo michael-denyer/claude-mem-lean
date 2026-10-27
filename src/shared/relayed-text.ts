@@ -49,20 +49,18 @@ function isApprovedDestination(url: URL): boolean {
  * a cut link is a broken one.
  */
 export function relayedLink(url: string | null | undefined): string | null {
-  try {
-    const parsed = new URL((url ?? '').trim());
-    if (
-      parsed.protocol === 'https:'
-      && !parsed.port
-      && !parsed.username
-      && !parsed.password
-      && isApprovedDestination(parsed)
-      && parsed.href.length <= RELAYED_TEXT_MAX_CHARS
-    ) {
-      return parsed.href;
-    }
-  } catch {
-    // Not a URL at all.
+  const candidate = (url ?? '').trim();
+  if (!URL.canParse(candidate)) return null;
+  const parsed = new URL(candidate);
+  if (
+    parsed.protocol === 'https:'
+    && !parsed.port
+    && !parsed.username
+    && !parsed.password
+    && isApprovedDestination(parsed)
+    && parsed.href.length <= RELAYED_TEXT_MAX_CHARS
+  ) {
+    return parsed.href;
   }
   return null;
 }

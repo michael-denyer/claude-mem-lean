@@ -14,6 +14,8 @@ const qoderPluginPath = path.join(rootDir, '.qoder-plugin', 'plugin.json');
 const bundledQoderPluginPath = path.join(rootDir, 'plugin', '.qoder-plugin', 'plugin.json');
 const claudePluginPath = path.join(rootDir, '.claude-plugin', 'plugin.json');
 const bundledClaudePluginPath = path.join(rootDir, 'plugin', '.claude-plugin', 'plugin.json');
+const claudeMarketplacePath = path.join(rootDir, '.claude-plugin', 'marketplace.json');
+const dshPackagePath = path.join(rootDir, 'dsh', 'package.json');
 
 function readJson(filePath) {
   return JSON.parse(fs.readFileSync(filePath, 'utf8'));
@@ -65,6 +67,22 @@ function syncClaudePlugin(plugin, pkg) {
   };
 }
 
+function syncVersionOnly(manifest, pkg) {
+  return {
+    ...manifest,
+    version: pkg.version,
+  };
+}
+
+function syncClaudeMarketplace(marketplace, pkg) {
+  return {
+    ...marketplace,
+    plugins: marketplace.plugins.map((plugin) =>
+      plugin.name === pkg.name ? { ...plugin, version: pkg.version } : plugin,
+    ),
+  };
+}
+
 function normalizeAuthorName(author) {
   if (typeof author === 'string') return author;
   if (author && typeof author === 'object' && typeof author.name === 'string') return author.name;
@@ -94,7 +112,17 @@ function normalizeRepositoryUrl(repository) {
 }
 
 function main() {
-  for (const filePath of [packageJsonPath, codexPluginPath, bundledCodexPluginPath, qoderPluginPath, bundledQoderPluginPath, claudePluginPath, bundledClaudePluginPath]) {
+  for (const filePath of [
+    packageJsonPath,
+    codexPluginPath,
+    bundledCodexPluginPath,
+    qoderPluginPath,
+    bundledQoderPluginPath,
+    claudePluginPath,
+    bundledClaudePluginPath,
+    claudeMarketplacePath,
+    dshPackagePath,
+  ]) {
     if (!fs.existsSync(filePath)) {
       console.error(`Missing required file: ${filePath}`);
       process.exit(1);
@@ -108,6 +136,8 @@ function main() {
   const bundledQoderPlugin = readJson(bundledQoderPluginPath);
   const claudePlugin = readJson(claudePluginPath);
   const bundledClaudePlugin = readJson(bundledClaudePluginPath);
+  const claudeMarketplace = readJson(claudeMarketplacePath);
+  const dshPackage = readJson(dshPackagePath);
 
   writeJson(codexPluginPath, syncCodexPlugin(codexPlugin, pkg));
   writeJson(bundledCodexPluginPath, syncCodexPlugin(bundledCodexPlugin, pkg));
@@ -115,6 +145,8 @@ function main() {
   writeJson(bundledQoderPluginPath, syncCursorPlugin(bundledQoderPlugin, pkg));
   writeJson(claudePluginPath, syncClaudePlugin(claudePlugin, pkg));
   writeJson(bundledClaudePluginPath, syncClaudePlugin(bundledClaudePlugin, pkg));
+  writeJson(claudeMarketplacePath, syncClaudeMarketplace(claudeMarketplace, pkg));
+  writeJson(dshPackagePath, syncVersionOnly(dshPackage, pkg));
 
   console.log('✓ Synced plugin manifests from package.json');
 }

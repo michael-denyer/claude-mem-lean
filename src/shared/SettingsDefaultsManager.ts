@@ -6,6 +6,7 @@ import { HOOK_TIMEOUTS, defaultSessionInitRequestTimeoutMs, getTimeout } from '.
 import { parseJsonWithBom, writeJsonFileAtomic } from './atomic-json.js';
 import { isOpenRouterApiUrl } from './openrouter-base-url.js';
 import { settingsTarget, withoutStaleRootCopies } from './settings-document.js';
+import { expandHome } from './expand-home.js';
 
 // A fresh settings.json is seeded with EVERY default (see loadFromFile), and
 // persisted values then win over DEFAULTS. So any install created after the
@@ -146,8 +147,12 @@ export interface SettingsDefaults {
   CLAUDE_MEM_MODEL: string;
   CLAUDE_MEM_CONTEXT_OBSERVATIONS: string;
   CLAUDE_MEM_SESSION_START_INCLUDE_ALL_SOURCES: string;
+  CLAUDE_MEM_CONTEXT_PROJECTS: string;
   CLAUDE_MEM_WORKER_PORT: string;
   CLAUDE_MEM_WORKER_HOST: string;
+  CLAUDE_MEM_WORKER_INGEST_TOKEN: string;
+  CLAUDE_MEM_WORKER_INGEST_MAX_BYTES: string;
+  CLAUDE_MEM_HOOK_SPOOL_TRANSPORT: string;
   CLAUDE_MEM_ALLOWED_ORIGINS: string;
   CLAUDE_MEM_PUBLIC_URL: string;
   CLAUDE_MEM_API_TIMEOUT_MS: string;
@@ -164,6 +169,7 @@ export interface SettingsDefaults {
   CLAUDE_MEM_CODEX_REASONING_EFFORT: string;
   CLAUDE_MEM_CODEX_MAX_CONCURRENT_AGENTS: string;
   CLAUDE_MEM_CODEX_OBSERVATION_BATCH_SIZE: string;
+  CLAUDE_MEM_CLAUDE_OBSERVATION_BATCH_SIZE: string;
   CLAUDE_MEM_CODEX_OBSERVATION_BATCH_MAX_CHARS: string;
   CLAUDE_MEM_CLAUDE_AUTH_METHOD: string;  
   CLAUDE_MEM_GEMINI_API_KEY: string;
@@ -184,9 +190,11 @@ export interface SettingsDefaults {
   CLAUDE_MEM_OPENAI_COMPAT_API_KEYS: string;
   CLAUDE_MEM_OPENAI_COMPAT_BASE_URL: string;
   CLAUDE_MEM_OPENAI_COMPAT_MODEL: string;
+  CLAUDE_MEM_OPENAI_COMPAT_REASONING: string;
   // Quota fallback. Both empty (the default) = off: dispatch is unchanged.
   CLAUDE_MEM_QUOTA_FALLBACK_PROVIDER: string;
   CLAUDE_MEM_QUOTA_FALLBACK_MODEL: string;
+  CLAUDE_MEM_QUOTA_FALLBACK_AUTH_METHOD: string;
   // Quota guard: per-window utilization (0–1) at which a subscription observer stops (#4230).
   CLAUDE_MEM_QUOTA_THRESHOLD_FIVE_HOUR: string;
   CLAUDE_MEM_QUOTA_THRESHOLD_SEVEN_DAY: string;
@@ -225,7 +233,7 @@ export interface SettingsDefaults {
   CLAUDE_MEM_CODEX_SUBAGENT_INGESTION: string;
   CLAUDE_MEM_MAX_CONCURRENT_AGENTS: string;  
   CLAUDE_MEM_OBSERVER_MAX_CONVERSATION_CHARS: string;
-  CLAUDE_MEM_OBSERVER_THINKING: string;  // Observer thinking param: 'disabled' | 'enabled[:budget]' | 'omit' (#4732)
+  CLAUDE_MEM_OBSERVER_THINKING: string;  // Observer thinking param: 'disabled' | 'adaptive' | 'enabled[:budget]' | 'omit' (#4732)
   CLAUDE_MEM_OBSERVER_CONTEXT_WINDOW: string;  // Observer model context window in tokens; '' = resolve automatically
   CLAUDE_MEM_OBSERVER_MAX_OUTPUT_TOKENS: string;  // Output-token cap on every HTTP observer request (OpenRouter, custom, gateway, Gemini)
   CLAUDE_MEM_OBSERVE_BARE_PROMPTS: string;  // 'true' sends a user prompt to the observer on its own; default 'false' carries it on the next tool event
@@ -234,6 +242,7 @@ export interface SettingsDefaults {
   CLAUDE_MEM_REDACT_DISABLED_BUILTINS: string;
   CLAUDE_MEM_REDACT_CUSTOM_PATTERNS: string;
   CLAUDE_MEM_REDACT_LOG_MATCHES: string;
+  CLAUDE_MEM_REDACT_GENERIC_ENABLED: string;
   CLAUDE_MEM_EXCLUDED_PROJECTS: string;
   CLAUDE_MEM_PROJECT_ENVIRONMENTS: string;
   CLAUDE_MEM_FOLDER_MD_EXCLUDE: string;
@@ -258,10 +267,15 @@ export interface SettingsDefaults {
   CLAUDE_MEM_CHROMA_MUTATION_TIMEOUT_MS: string;
   CLAUDE_MEM_CHROMA_MAX_PENDING_MUTATIONS: string;
   CLAUDE_MEM_CHROMA_EMBEDDING_FUNCTION: string;  // chroma-mcp embedding function for new collections
+  CLAUDE_MEM_SERVER_VECTOR_SEARCH: string;       // server search by meaning: 'auto', 'true' or 'false'
+  CLAUDE_MEM_EMBEDDING_BACKFILL_THREADS: string; // CPU threads for embedding stored rows; '' = half, 0 = all
+  CLAUDE_MEM_EMBEDDING_MODEL: string;            // in-process embedding model for server search by meaning
   CLAUDE_MEM_CHROMA_UVX_PATH: string;            // uvx binary (or its folder) to launch chroma-mcp with
+  CLAUDE_MEM_SEARCH_RECENCY_DAYS: string;        // Implicit 90-day recency window on date-less semantic searches (#4770); 0 = no window
   CLAUDE_MEM_LLM_TIMEOUT_MS: string;
   CLAUDE_MEM_FIELD_OPTIMIZE_TIMEOUT_MS: string;
   CLAUDE_MEM_LLM_STREAM_IDLE_TIMEOUT_MS: string;
+  CLAUDE_MEM_WORKER_HEARTBEAT_STALE_MS: string;
   // Observation TV remote broadcast. EMPTY = OFF: the read-only guard is not
   // mounted and the worker behaves exactly as before. Set (with a non-loopback
   // CLAUDE_MEM_WORKER_HOST) to expose ONLY /tv, /tv.html, /stream and
@@ -289,6 +303,10 @@ export interface SettingsDefaults {
   CLAUDE_MEM_PRO_MEMORY_KEY: string;
   CLAUDE_MEM_PRO_MEMORY_BASE_URL: string;
   CLAUDE_MEM_PRO_MEMORY_MODEL: string;
+  // Automatic local DB snapshots (BackupManager). Opt-in via ENABLED.
+  CLAUDE_MEM_BACKUP_ENABLED: string;
+  CLAUDE_MEM_BACKUP_INTERVAL_HOURS: string;
+  CLAUDE_MEM_BACKUP_RETAIN_COUNT: string;
   CLAUDE_MEM_TELEGRAM_ENABLED: string;
   CLAUDE_MEM_TELEGRAM_BOT_TOKEN: string;
   CLAUDE_MEM_TELEGRAM_CHAT_ID: string;
@@ -303,6 +321,10 @@ export interface SettingsDefaults {
   CLAUDE_MEM_GROK_BOT_AWARENESS_TRIGGER_CONCEPTS: string;
   CLAUDE_MEM_GROK_BOT_WEBHOOK_URL: string;
   CLAUDE_MEM_GROK_BOT_WEBHOOK_SECRET: string;
+  CLAUDE_MEM_NOTION_ENABLED: string;
+  CLAUDE_MEM_NOTION_TOKEN: string;
+  CLAUDE_MEM_NOTION_DATABASE_ID: string;
+  CLAUDE_MEM_NOTION_AUTO_CREATE_PROPERTIES: string;
   CLAUDE_MEM_GROK_BOT_INJECT_ENABLED: string;
   CLAUDE_MEM_GROK_BOT_INJECT_AGENT_IDS: string;
   CLAUDE_MEM_GROK_BOT_INJECT_TIER: string;
@@ -358,8 +380,12 @@ export class SettingsDefaultsManager {
     CLAUDE_MEM_MODEL: 'claude-haiku-4-5-20251001',
     CLAUDE_MEM_CONTEXT_OBSERVATIONS: '25',
     CLAUDE_MEM_SESSION_START_INCLUDE_ALL_SOURCES: 'false',
+    CLAUDE_MEM_CONTEXT_PROJECTS: 'current', // 'current' = this checkout only; 'all' = SessionStart context spans every project
     CLAUDE_MEM_WORKER_PORT: String(37700 + ((process.getuid?.() ?? 77) % 100)),
     CLAUDE_MEM_WORKER_HOST: '127.0.0.1',
+    CLAUDE_MEM_WORKER_INGEST_TOKEN: '',
+    CLAUDE_MEM_WORKER_INGEST_MAX_BYTES: '5242880',
+    CLAUDE_MEM_HOOK_SPOOL_TRANSPORT: 'auto',
     CLAUDE_MEM_ALLOWED_ORIGINS: '',  // Comma-separated browser origins allowed to call the worker
                                      // cross-origin besides http://localhost:* / http://127.0.0.1:*.
                                      // Their host names also pass the DNS-rebinding Host check.
@@ -376,7 +402,7 @@ export class SettingsDefaultsManager {
     // while transcript watches run.
     CLAUDE_MEM_IDLE_EXIT_SEC: '0',
     CLAUDE_MEM_SKIP_TOOLS: 'ListMcpResourcesTool,SlashCommand,Skill,TodoWrite,AskUserQuestion',
-    CLAUDE_MEM_SKIP_BASH_PATTERNS: '',  // Regex matched against a shell command (Bash; Codex exec_command); when it matches, the observation is skipped. Empty = capture every command. Use alternation for several patterns, e.g. ^(ls|cat|pwd)\b
+    CLAUDE_MEM_SKIP_BASH_PATTERNS: '',  // Regex matched against a shell command (Bash; PowerShell; Codex exec_command); when it matches, the observation is skipped. Empty = capture every command. Use alternation for several patterns, e.g. ^(ls|cat|pwd)\b
     CLAUDE_MEM_SKIP_SUBAGENT_OBSERVATIONS: 'false',  // #2736 — default off preserves current behavior; set 'true' to skip every subagent observation (recommended for heavy Dynamic Workflows users)
     CLAUDE_MEM_SKIP_AGENT_TYPES: '',                 // #2736 — default empty preserves current behavior; recommended value 'workflow-subagent' to drop Dynamic Workflows fan-out noise
     CLAUDE_MEM_CAPTURE_ADVISOR_CALLS: 'false',       // #3165 — opt-in: the Stop hook scans the transcript's tail for advisor calls and stores the advice locally (worker runtime only)
@@ -391,6 +417,7 @@ export class SettingsDefaultsManager {
     CLAUDE_MEM_CODEX_MAX_CONCURRENT_AGENTS: '2',
     CLAUDE_MEM_CODEX_OBSERVATION_BATCH_SIZE: '8',
     CLAUDE_MEM_CODEX_OBSERVATION_BATCH_MAX_CHARS: '32000',
+    CLAUDE_MEM_CLAUDE_OBSERVATION_BATCH_SIZE: '1', // Queued same-context events per Claude observer prompt (1-32). 1 = one event per prompt.
     CLAUDE_MEM_CLAUDE_AUTH_METHOD: 'subscription',  // Default to logged-in Claude SDK auth (not API key)
     CLAUDE_MEM_GEMINI_API_KEY: '',  // Empty by default, can be set via UI or env
     CLAUDE_MEM_GEMINI_API_KEYS: '',  // Optional extra keys (newline/comma separated). Rotates on rate_limit/quota_exhausted/auth_invalid — see src/shared/api-key-pool.ts.
@@ -411,14 +438,16 @@ export class SettingsDefaultsManager {
     // JSON object of provider-specific request fields, e.g. {"reasoning":{"enabled":false}}.
     // Settings file or env only (never the HTTP settings API); never sent to the cmem gateway.
     CLAUDE_MEM_OPENROUTER_EXTRA_BODY: '',
-    CLAUDE_MEM_OPENROUTER_REASONING_EFFORT: '',  // none | minimal | low | medium | high. Empty sends nothing. openrouter.ai only.
+    CLAUDE_MEM_OPENROUTER_REASONING_EFFORT: '',  // none | minimal | low | medium | high. Empty disables reasoning on openrouter.ai and the cmem gateway. A set effort is openrouter.ai only.
     CLAUDE_MEM_OPENAI_COMPAT_PRESET: '',  // Named endpoint preset for the openai-compatible provider (nvidia-nim, deepseek, groq, together, vllm, ollama, lmstudio). Empty = 'custom', configure the base URL by hand.
     CLAUDE_MEM_OPENAI_COMPAT_API_KEY: '',  // Key for the openai-compatible provider. Never shares the OpenRouter key or its attribution headers.
     CLAUDE_MEM_OPENAI_COMPAT_API_KEYS: '',  // Optional extra keys (newline/comma separated) for the openai-compatible provider.
     CLAUDE_MEM_OPENAI_COMPAT_BASE_URL: '',  // OpenAI-compatible base URL, e.g. https://integrate.api.nvidia.com/v1. Overrides the preset's base URL when set.
     CLAUDE_MEM_OPENAI_COMPAT_MODEL: '',  // Model id passed verbatim. Empty = the preset's default model.
+    CLAUDE_MEM_OPENAI_COMPAT_REASONING: '',  // off | on. Empty = off: every openai-compatible request sends reasoning:{enabled:false}. "on" leaves reasoning to the endpoint.
     CLAUDE_MEM_QUOTA_FALLBACK_PROVIDER: 'claude',  // 'claude' (the Anthropic plan; '' means this too) | 'gemini' | 'openrouter' | 'openai-compatible' | 'off': where observer work goes while the selected provider cannot serve (spent allowance, rate limit or over capacity past its retries, outage, repeated unusable replies). Claude is used only when a Claude login or key exists
     CLAUDE_MEM_QUOTA_FALLBACK_MODEL: '',     // Claude model for a Claude fallback run; '' = CLAUDE_MEM_MODEL and tier routing. Ignored for other fallbacks (only ClaudeProvider reads modelOverride)
+    CLAUDE_MEM_QUOTA_FALLBACK_AUTH_METHOD: '', // '' (off) | 'subscription' | 'api-key': the Claude credential to run on while the primary one is held for quota. 'subscription': the Claude Code login, for a spent ANTHROPIC_API_KEY. 'api-key': ANTHROPIC_FALLBACK_API_KEY from .env, for a login that is spent or paused by the quota guard. Tried before CLAUDE_MEM_QUOTA_FALLBACK_PROVIDER
     CLAUDE_MEM_QUOTA_THRESHOLD_FIVE_HOUR: '0.95',          // Quota guard (#4230): subscription observer stops at this utilization of the window. A provider rejection always stops it
     CLAUDE_MEM_QUOTA_THRESHOLD_SEVEN_DAY: '0.93',
     CLAUDE_MEM_QUOTA_THRESHOLD_SEVEN_DAY_OPUS: '0.93',
@@ -457,7 +486,7 @@ export class SettingsDefaultsManager {
     CLAUDE_MEM_CODEX_SUBAGENT_INGESTION: 'false',
     CLAUDE_MEM_MAX_CONCURRENT_AGENTS: '2',  // Max concurrent Claude SDK agent subprocesses
     CLAUDE_MEM_OBSERVER_MAX_CONVERSATION_CHARS: '400000',  // Retire an observer conversation past this size and start a fresh generation (#3800)
-    CLAUDE_MEM_OBSERVER_THINKING: 'disabled',  // Observer thinking param: 'disabled' (shipped) | 'enabled[:budget]' | 'omit' — an always-thinking gateway upstream rejects 'disabled' with 400/1210 (#4732)
+    CLAUDE_MEM_OBSERVER_THINKING: 'disabled',  // Observer thinking param: 'disabled' (shipped) | 'adaptive' | 'enabled[:budget]' | 'omit' — an always-thinking gateway upstream rejects 'disabled' with 400/1210 (#4732)
     CLAUDE_MEM_OBSERVER_CONTEXT_WINDOW: '',  // Observer model context window in tokens; '' = resolve it (OpenRouter catalogue, Gemini/Claude maps). Lowers the budget above to half the window (#3625)
     CLAUDE_MEM_OBSERVER_MAX_OUTPUT_TOKENS: '4096',  // max_tokens / max_completion_tokens / Gemini maxOutputTokens on every HTTP observer request (#3868)
     CLAUDE_MEM_OBSERVE_BARE_PROMPTS: 'false',  // 'true' restores one observer call per user prompt; 'false' carries the prompt on the next tool event's call
@@ -466,6 +495,7 @@ export class SettingsDefaultsManager {
     CLAUDE_MEM_REDACT_DISABLED_BUILTINS: '',              // CSV of built-in pattern names to disable, e.g. 'jwt,slack_token'
     CLAUDE_MEM_REDACT_CUSTOM_PATTERNS: '[]',              // JSON array of { name, regex } objects
     CLAUDE_MEM_REDACT_LOG_MATCHES: 'false',               // Log pattern,count per invocation (no payload)
+    CLAUDE_MEM_REDACT_GENERIC_ENABLED: 'false',           // #4745 — opt-in: also redact un-prefixed credentials (password=, *_TOKEN=, *_SECRET=, *_API_KEY=, Authorization: Bearer)
     CLAUDE_MEM_EXCLUDED_PROJECTS: '',  // Comma-separated glob patterns for excluded project paths
     CLAUDE_MEM_PROJECT_ENVIRONMENTS: '[]',  // JSON array of {"name","patterns"}: directories matching an environment's globs share one project named after it
     CLAUDE_MEM_FOLDER_MD_EXCLUDE: '[]',  // JSON array of folder paths to exclude from CLAUDE.md generation
@@ -496,10 +526,31 @@ export class SettingsDefaultsManager {
     // memory text to that vendor. Any other value is rejected. Applies to new
     // collections only — changing it requires re-indexing.
     CLAUDE_MEM_CHROMA_EMBEDDING_FUNCTION: 'default',
+    // The server's search by meaning (pgvector): it embeds every observation
+    // in process, existing rows in the background at startup. 'true'
+    // turns it on and 'false' off. 'auto' turns it on for a new database and
+    // leaves a database from before it keyword-only, so an upgrade adds no
+    // embedding work until that deployment sets 'true'.
+    CLAUDE_MEM_SERVER_VECTOR_SEARCH: 'auto',
+    // A server start that finds stored observations without vectors from the
+    // current model (search by meaning just turned on, or the model changed)
+    // embeds them in the background, which can take hours on a large store.
+    // That start caps the embedder at this many CPU threads until the next
+    // restart: empty is half the machine's threads, 0 is every thread.
+    CLAUDE_MEM_EMBEDDING_BACKFILL_THREADS: '',
+    // Embedding model the server's search by meaning uses: a key of
+    // EMBEDDING_MODELS in src/services/vector/models.ts, which lists them and
+    // their vector widths. 'all-MiniLM-L6-v2' is Chroma's default
+    // (English-tuned). Any other value is rejected. Changing it re-embeds
+    // every observation, and search by meaning covers only rows already
+    // re-embedded until that finishes.
+    CLAUDE_MEM_EMBEDDING_MODEL: 'all-MiniLM-L6-v2',
     CLAUDE_MEM_CHROMA_UVX_PATH: '',            // Empty = search uv's install folders, then PATH (#4195)
+    CLAUDE_MEM_SEARCH_RECENCY_DAYS: '90',      // Date-less semantic search only ranks matches from the last N days (#4770). 0 = no window (every match eligible); an explicit dateStart/dateEnd always wins. Restart the worker after changing it
     CLAUDE_MEM_LLM_TIMEOUT_MS: String(DEFAULT_LLM_TIMEOUT_MS),  // Per-attempt deadline for non-streamed observer requests (retry.ts); streamed OpenRouter/OpenAI-compatible requests use a 90s idle timeout + 300s cap (streamed-chat-completion.ts)
     CLAUDE_MEM_FIELD_OPTIMIZE_TIMEOUT_MS: String(DEFAULT_LLM_TIMEOUT_MS),  // Oversized-field condensation deadline (field-optimizer.ts); a request to the same backend, so the same deadline
     CLAUDE_MEM_LLM_STREAM_IDLE_TIMEOUT_MS: '90000',  // Streamed request idle window (streamed-chat-completion.ts): silence that ends a stream. Self-hosted backends queue behind a load balancer, and the queue wait reads as idle (#4737) — raise it there. Literal because shared cannot import from the worker; a drift test pins it to the shipped constant
+    CLAUDE_MEM_WORKER_HEARTBEAT_STALE_MS: '120000', // A silent worker whose liveness heartbeat is younger than this is slow, not dead (10000-3600000).
     // Observation TV remote broadcast. EMPTY = OFF: the read-only guard is not
     // mounted and the worker behaves exactly as before. Set (with a non-loopback
     // CLAUDE_MEM_WORKER_HOST) to expose ONLY /tv, /tv.html, /stream and
@@ -520,6 +571,10 @@ export class SettingsDefaultsManager {
     CLAUDE_MEM_PRO_MEMORY_KEY: '',       // One-shot browser-pairing memory key, staged until provider selection (settings.json is chmod 0600 by the installer)
     CLAUDE_MEM_PRO_MEMORY_BASE_URL: '',  // Backend-supplied endpoint paired with CLAUDE_MEM_PRO_MEMORY_KEY
     CLAUDE_MEM_PRO_MEMORY_MODEL: '',     // Backend-supplied model paired with CLAUDE_MEM_PRO_MEMORY_KEY
+    // Automatic local DB snapshots (BackupManager). Off by default; opt-in.
+    CLAUDE_MEM_BACKUP_ENABLED: 'false',
+    CLAUDE_MEM_BACKUP_INTERVAL_HOURS: '24',   // Snapshot cadence in hours
+    CLAUDE_MEM_BACKUP_RETAIN_COUNT: '7',      // Keep the N most-recent snapshots
     CLAUDE_MEM_TELEGRAM_ENABLED: 'true',
     CLAUDE_MEM_TELEGRAM_BOT_TOKEN: '',
     CLAUDE_MEM_TELEGRAM_CHAT_ID: '',
@@ -537,6 +592,13 @@ export class SettingsDefaultsManager {
     // (off while empty). File/env only; both are masked on GET /api/settings.
     CLAUDE_MEM_GROK_BOT_WEBHOOK_URL: '',
     CLAUDE_MEM_GROK_BOT_WEBHOOK_SECRET: '',
+    // Optional Notion export: each new observation is upserted into a Notion
+    // database. Off by default; a no-op until the token and database id are set.
+    // The token is file/env only and masked on GET /api/settings.
+    CLAUDE_MEM_NOTION_ENABLED: 'false',
+    CLAUDE_MEM_NOTION_TOKEN: '',
+    CLAUDE_MEM_NOTION_DATABASE_ID: '',
+    CLAUDE_MEM_NOTION_AUTO_CREATE_PROPERTIES: 'true',
     // Live Grok Bot Memory INDEX. Worker writes zz-claude-mem-inject.md as
     // observations land. Default on; no-op when no Grok Bot seats exist.
     CLAUDE_MEM_GROK_BOT_INJECT_ENABLED: 'true',
@@ -607,6 +669,15 @@ export class SettingsDefaultsManager {
   private static finalizeSettings(settings: SettingsDefaults, applyEnvOverrides: boolean): SettingsDefaults {
     const result = applyEnvOverrides ? this.applyEnvOverrides(settings) : settings;
     result.CLAUDE_MEM_WORKER_HOST = this.normalizeWorkerHost(result.CLAUDE_MEM_WORKER_HOST);
+    // The default points at <home>/.claude-mem, and fresh settings files persist
+    // it, so a custom CLAUDE_MEM_DATA_DIR would still share the home install's
+    // transcript watches. Only an explicitly configured path is kept as is.
+    // The data dir is home-expanded the same way paths.ts resolves it, so every
+    // reader of this setting gets one absolute path.
+    const dataDir = result.CLAUDE_MEM_DATA_DIR?.trim();
+    if (dataDir && result.CLAUDE_MEM_TRANSCRIPTS_CONFIG_PATH === this.DEFAULTS.CLAUDE_MEM_TRANSCRIPTS_CONFIG_PATH) {
+      result.CLAUDE_MEM_TRANSCRIPTS_CONFIG_PATH = join(expandHome(dataDir), 'transcript-watch.json');
+    }
     return result;
   }
 

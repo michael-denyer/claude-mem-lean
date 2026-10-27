@@ -3,7 +3,10 @@ import type { Observation, TokenEconomics, ContextConfig } from './types.js';
 import { CHARS_PER_TOKEN_ESTIMATE } from './types.js';
 import { ModeManager } from '../domain/ModeManager.js';
 
-export function calculateObservationTokens(obs: Observation): number {
+/** The fields the token economics read. */
+export type ObservationTokenFields = Pick<Observation, 'title' | 'subtitle' | 'narrative' | 'facts' | 'discovery_tokens'>;
+
+export function calculateObservationTokens(obs: ObservationTokenFields): number {
   const obsSize = (obs.title?.length || 0) +
                   (obs.subtitle?.length || 0) +
                   (obs.narrative?.length || 0) +
@@ -11,17 +14,7 @@ export function calculateObservationTokens(obs: Observation): number {
   return Math.ceil(obsSize / CHARS_PER_TOKEN_ESTIMATE);
 }
 
-export function calculateTokenEconomics(observations: Observation[]): TokenEconomics {
-  const totalObservations = observations.length;
-
-  const totalReadTokens = observations.reduce((sum, obs) => {
-    return sum + calculateObservationTokens(obs);
-  }, 0);
-
-  const totalDiscoveryTokens = observations.reduce((sum, obs) => {
-    return sum + (obs.discovery_tokens || 0);
-  }, 0);
-
+function economicsFrom(totalObservations: number, totalReadTokens: number, totalDiscoveryTokens: number): TokenEconomics {
   const savings = totalDiscoveryTokens - totalReadTokens;
   const savingsPercent = totalDiscoveryTokens > 0
     ? Math.round((savings / totalDiscoveryTokens) * 100)
@@ -34,6 +27,18 @@ export function calculateTokenEconomics(observations: Observation[]): TokenEcono
     savings,
     savingsPercent,
   };
+}
+
+export function calculateTokenEconomics(observations: ObservationTokenFields[]): TokenEconomics {
+  const totalReadTokens = observations.reduce((sum, obs) => {
+    return sum + calculateObservationTokens(obs);
+  }, 0);
+
+  const totalDiscoveryTokens = observations.reduce((sum, obs) => {
+    return sum + (obs.discovery_tokens || 0);
+  }, 0);
+
+  return economicsFrom(observations.length, totalReadTokens, totalDiscoveryTokens);
 }
 
 export function getWorkEmoji(obsType: string): string {

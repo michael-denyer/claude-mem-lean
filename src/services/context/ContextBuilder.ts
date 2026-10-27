@@ -13,7 +13,7 @@ import { projectReadKeys } from '../sqlite/project-read-keys.js';
 import type { ContextInput, ContextConfig, Observation, SessionSummary } from './types.js';
 import { colors } from './types.js';
 import { loadContextConfig } from './ContextConfigLoader.js';
-import { fitContextToBudget, CONTEXT_OUTPUT_LIMIT } from './ContextBudget.js';
+import { fitContextToBudget, CONTEXT_OUTPUT_LIMIT, TERMINAL_BANNER_RESERVE_CHARS } from './ContextBudget.js';
 import { calculateTokenEconomics } from './TokenCalculator.js';
 import {
   queryObservationsMulti,
@@ -45,6 +45,9 @@ import {
 import { cooldownAppliesToCurrentAccount } from '../../shared/quota-cooldown.js';
 import { resolveRuntimeContext, type ServerRuntimeContext } from '../hooks/runtime-selector.js';
 import { fetchServerContextRows, type ServerContextRows } from './ServerContextRows.js';
+import { ModeManager } from '../domain/ModeManager.js';
+import { getContextReadWorker } from './ContextReadWorkerClient.js';
+import type { ContextReadOptions, ContextReadResult } from './ContextReadProtocol.js';
 import { formatHeaderDateTime } from '../../shared/timeline-formatting.js';
 import {
   CONTEXT_HEADER_TIME_PLACEHOLDER,
@@ -390,7 +393,7 @@ export function fitContextForDelivery(
     const warningLength = warning ? warning.length + 2 : 0;
     text = appendObserverHealthWarning(warning, truncateTerminalPreview(
       renderPreview(selected, budget.config),
-      limit - warningLength
+      limit - warningLength - TERMINAL_BANNER_RESERVE_CHARS
     ));
   }
 
@@ -414,8 +417,8 @@ interface ContextScope {
   platformSource: string | undefined;
 }
 
-function resolveContextScope(input: ContextInput | undefined): ContextScope {
-  const config = loadContextConfig();
+function resolveContextScope(input: ContextInput | undefined, configSnapshot?: ContextConfig): ContextScope {
+  const config = configSnapshot ? { ...configSnapshot } : loadContextConfig();
   if (input?.includePriorMessage === false) config.showLastMessage = false;
   const cwd = input?.cwd ?? process.cwd();
   // Callers that name the projects (the worker route, the server-runtime hook)
@@ -554,14 +557,24 @@ export async function generateServerSessionStartContext(
 
 export async function generateContextWithStats(
   input?: ContextInput,
-  forHuman: boolean = false
-): Promise<{ text: string; stats: ContextInjectStats | null }> {
+  forHuman: boolean = false,
+  options: ContextReadOptions = {},
+): Promise<ContextReadResult> {
   const runtime = resolveRuntimeContext();
   if (runtime.runtime === 'server') {
     return generateServerContextWithStats(runtime, input, forHuman);
   }
 
-  const scope = resolveContextScope(input);
+  if (options.execution === 'worker') {
+    return (options.reader ?? getContextReadWorker()).render({
+      context: input,
+      forHuman,
+      mode: ModeManager.getInstance().getActiveMode(),
+      config: options.config ?? loadContextConfig(),
+    });
+  }
+
+  const scope = resolveContextScope(input, options.config);
   const rawDb = initializeDatabase();
   if (!rawDb) {
     return { text: healthWarningForContext(input, forHuman), stats: null };
@@ -574,7 +587,7 @@ export async function generateContextWithStats(
     const queryProjects = projectReadKeys(rawDb, scope.projects.length > 1 ? scope.projects : [scope.project]);
     const observations = queryObservationsMulti(db, queryProjects, scope.config, scope.platformSource);
     const summaries = querySummariesMulti(db, queryProjects, scope.config, scope.platformSource);
-    return renderContextFromRows({ observations, summaries }, input, forHuman, scope);
+    return { ...renderContextFromRows({ observations, summaries }, input, forHuman, scope), readKeys: queryProjects };
   } finally {
     rawDb.close();
   }
@@ -582,7 +595,8 @@ export async function generateContextWithStats(
 
 export async function generateContext(
   input?: ContextInput,
-  forHuman: boolean = false
+  forHuman: boolean = false,
+  options: ContextReadOptions = {},
 ): Promise<string> {
-  return (await generateContextWithStats(input, forHuman)).text;
+  return (await generateContextWithStats(input, forHuman, options)).text;
 }
