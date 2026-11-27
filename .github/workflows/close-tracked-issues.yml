@@ -20,8 +20,10 @@ jobs:
   close-tracked:
     runs-on: ubuntu-latest
     if: |
-      (github.event_name == 'issues' && contains(github.event.issue.labels.*.name, 'tracking')) ||
-      github.event_name == 'workflow_dispatch'
+      github.actor_id == github.repository_owner_id && github.triggering_actor == github.repository_owner && (
+        (github.event_name == 'issues' && contains(github.event.issue.labels.*.name, 'tracking')) ||
+        github.event_name == 'workflow_dispatch'
+      )
 
     permissions:
       issues: write
