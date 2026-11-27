@@ -6,6 +6,7 @@ on:
 
 jobs:
   summary:
+    if: github.actor_id == github.repository_owner_id && github.triggering_actor == github.repository_owner
     runs-on: ubuntu-latest
     permissions:
       issues: write

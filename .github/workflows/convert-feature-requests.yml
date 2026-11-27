@@ -14,8 +14,10 @@ jobs:
   convert:
     runs-on: ubuntu-latest
     if: |
-      (github.event_name == 'issues' && github.event.label.name == 'feature-request') ||
-      github.event_name == 'workflow_dispatch'
+      github.actor_id == github.repository_owner_id && github.triggering_actor == github.repository_owner && (
+        (github.event_name == 'issues' && github.event.label.name == 'feature-request') ||
+        github.event_name == 'workflow_dispatch'
+      )
 
     permissions:
       issues: write
