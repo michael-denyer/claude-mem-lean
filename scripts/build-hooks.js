@@ -481,7 +481,7 @@ async function buildHooks() {
       description: 'Runtime dependencies for claude-mem bundled hooks',
       type: 'module',
       dependencies: {
-        'zod': '^4.4.3',
+        'zod': '^4.6.6',
         // Exact, not a range: the worker only installs a tree-sitter executable
         // whose SHA-256 is pinned for this version
         // (src/services/smart-file-read/tree-sitter-cli-checksums.ts), and an
@@ -511,7 +511,7 @@ async function buildHooks() {
         '@tree-sitter-grammars/tree-sitter-yaml': '^0.7.1',
         '@derekstride/tree-sitter-sql': '^0.3.11',
         '@tree-sitter-grammars/tree-sitter-markdown': '^0.3.2',
-        'shell-quote': '1.9.0',
+        'shell-quote': '1.11.0',
       },
       // The server's embedder, about 300 MB, which only server mode runs. The
       // plugin install omits optional dependencies (installPluginDependencies),
@@ -551,7 +551,9 @@ async function buildHooks() {
         // onnxruntime-common, which onnxruntime-node already installs, so it
         // downloads nothing. Remove it once transformers.js stops requiring
         // onnxruntime-web under Node.
-        'onnxruntime-web': `npm:onnxruntime-common@${onnxruntimeNode}`
+        'onnxruntime-web': `npm:onnxruntime-common@${onnxruntimeNode}`,
+        // onnxruntime-node's dependency range otherwise keeps adm-zip on 0.5.x.
+        'adm-zip': '^0.6.1'
       },
       trustedDependencies: [
         'tree-sitter-cli'
